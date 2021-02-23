@@ -1,4 +1,4 @@
-#include "testing.h"
+#include "RuntimeTesting.h"
 #include "../../runtime/terminator.h"
 #include <algorithm>
 #include <cstdarg>
@@ -11,18 +11,7 @@ static int failures{0};
 static bool hasRunStartTests{false};
 
 // Override the Fortran runtime's Crash() for testing purposes
-[[noreturn]] static void CatchCrash(
-    const char *sourceFile, int sourceLine, const char *message, va_list &ap) {
-  char buffer[1000];
-  std::vsnprintf(buffer, sizeof buffer, message, ap);
-  va_end(ap);
-  llvm::errs() << (sourceFile ? sourceFile : "unknown source file") << '('
-               << sourceLine << "): CRASH: " << buffer << '\n';
-  failures++;
-  throw std::string{buffer};
-}
-
-static void CatchCrashNoThrow(
+static void CatchCrash(
     const char *sourceFile, int sourceLine, const char *message, va_list &ap) {
   char buffer[1000];
   std::vsnprintf(buffer, sizeof buffer, message, ap);
@@ -36,28 +25,16 @@ int GetNumRuntimeCrashes() {
   return failures;
 }
 
-void StartTests(bool rethrow/*=true*/) {
+void StartTests() {
   if (hasRunStartTests)
     return;
-  if (rethrow)
-    Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrash);
-  else
-    Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrashNoThrow);
+  Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrash);
   hasRunStartTests = true;
 }
 
-llvm::raw_ostream &Fail() {
-  ++failures;
-  return llvm::errs();
-}
-
-int EndTests() {
-  if (failures == 0) {
-    llvm::outs() << "PASS\n";
-  } else {
-    llvm::outs() << "FAIL " << failures << " tests\n";
-  }
-  return failures != 0;
+void EndTests() {
+  ASSERT_NO_CRASHES();
+  failures = 0;
 }
 
 void SetCharacter(char *to, std::size_t n, const char *from) {

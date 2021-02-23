@@ -18,11 +18,6 @@ target_link_libraries(RuntimeTesting
   ${llvm_libs}
 )
 
-add_flang_nongtest_unittest(format
-  RuntimeTesting
-  FortranRuntime
-)
-
 add_flang_nongtest_unittest(hello
   RuntimeTesting
   FortranRuntime
@@ -38,11 +33,6 @@ target_link_libraries(external-hello-world
 )
 
 add_flang_nongtest_unittest(external-io
-  RuntimeTesting
-  FortranRuntime
-)
-
-add_flang_nongtest_unittest(list-input
   RuntimeTesting
   FortranRuntime
 )

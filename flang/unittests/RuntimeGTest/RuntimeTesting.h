@@ -1,12 +1,8 @@
 #ifndef FORTRAN_TEST_RUNTIME_TESTING_H_
 #define FORTRAN_TEST_RUNTIME_TESTING_H_
 
-#include "llvm/Support/raw_ostream.h"
+#include "gtest/gtest.h"
 #include <cstddef>
-
-namespace llvm {
-class raw_ostream;
-}
 
 // Number of runtime crashes discoverd by the crash handler registered in the
 // `StartTests` function below.
@@ -14,11 +10,10 @@ int GetNumRuntimeCrashes();
 
 // Registers a callback in the fortran runtime to register errors in tests.
 // When `rethrow` is false, you must check for runtime crashes yourself.
-void StartTests(bool rethrow = true);
+void StartTests();
 
-llvm::raw_ostream &Fail();
-
-int EndTests();
+// Resets static variables that should not carry over between tests
+void EndTests();
 
 // Defines a CHARACTER object with padding when needed
 void SetCharacter(char *, std::size_t, const char *);
