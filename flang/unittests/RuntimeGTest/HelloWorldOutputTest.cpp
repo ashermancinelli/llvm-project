@@ -3,29 +3,30 @@
 #include "RuntimeTesting.h"
 #include "../../runtime/descriptor.h"
 #include "../../runtime/io-api.h"
-#include <cstring>
 #include <array>
+#include <cstring>
 #include <tuple>
 
 using namespace Fortran::runtime;
 using namespace Fortran::runtime::io;
 
-static void VerifyFormat(const char *format, const char *expect, std::string &&got) {
+static void VerifyFormat(
+    const char *format, const char *expect, std::string &&got) {
   std::string want{expect};
   want.resize(got.size(), ' ');
   EXPECT_EQ(want, got) << '\'' << format << "' failed. got '" << got
-    << "', expected '" << want << "'. " << want.size() << ' ' << got.size()
-    << ' ' << std::string(expect).size();
+                       << "', expected '" << want << "'. " << want.size() << ' '
+                       << got.size() << ' ' << std::string(expect).size();
 }
 
-static void VerifyRealFormat(const char* format, double x, const char* expect) {
+static void VerifyRealFormat(const char *format, double x, const char *expect) {
   char buffer[800];
   auto cookie{IONAME(BeginInternalFormattedOutput)(
       buffer, sizeof buffer, format, std::strlen(format))};
   IONAME(OutputReal64)(cookie, x);
   auto status{IONAME(EndIoStatement)(cookie)};
   ASSERT_FALSE(status) << '\'' << format << "' failed, status "
-    << static_cast<int>(status);
+                       << static_cast<int>(status);
   VerifyFormat(format, expect, std::string{buffer, sizeof buffer});
 }
 
@@ -46,9 +47,11 @@ static void VerifyRealInputFormat(
   IONAME(GetIoMsg)(cookie, iomsg, sizeof iomsg - 1);
   auto status{IONAME(EndIoStatement)(cookie)};
   ASSERT_FALSE(status) << '\'' << format << "' failed reading '" << data
-    << "', status " << static_cast<int>(status) << " iomsg '" << iomsg << "'";
+                       << "', status " << static_cast<int>(status) << " iomsg '"
+                       << iomsg << "'";
   ASSERT_EQ(u.raw, want) << '\'' << format << "' failed reading '" << data
-    << "', want 0x" << std::hex << want << ", got 0x" << u.raw;
+                         << "', want 0x" << std::hex << want << ", got 0x"
+                         << u.raw;
 }
 
 TEST(IOApiTests, HelloWorldOutputTest) {
@@ -63,7 +66,7 @@ TEST(IOApiTests, HelloWorldOutputTest) {
   IONAME(OutputLogical)(cookie, true);
   auto status{IONAME(EndIoStatement)(cookie)};
   ASSERT_FALSE(status) << "hello: '" << format << "' failed, status "
-           << static_cast<int>(status);
+                       << static_cast<int>(status);
   VerifyFormat(format, "HELLO, WORLD  678 0xFEEDFACE T",
       std::string{buffer, sizeof buffer});
   EndTests();
@@ -85,7 +88,7 @@ TEST(IOApiTests, MultilineOutputTest) {
       CFI_attribute_pointer);
 
   auto error{
-    CFI_section(&section.raw(), &whole.raw(), lowers, uppers, strides)};
+      CFI_section(&section.raw(), &whole.raw(), lowers, uppers, strides)};
   ASSERT_FALSE(error) << "multiline: CFI_section failed: " << error;
 
   section.Dump();
@@ -103,7 +106,7 @@ TEST(IOApiTests, MultilineOutputTest) {
 
   auto status{IONAME(EndIoStatement)(cookie)};
   ASSERT_FALSE(status) << "multiline: '" << format << "' failed, status "
-           << static_cast<int>(status);
+                       << static_cast<int>(status);
   VerifyFormat(format,
       ">HELLO, WORLD                  <"
       "                                "
@@ -124,28 +127,28 @@ TEST(IOApiTests, ListInputTest) {
   }
   for (int j{0}; j < 6; j += 2) {
     ASSERT_TRUE(IONAME(InputComplex32)(cookie, &z[j]))
-      << "InputComplex32 failed\n";
+        << "InputComplex32 failed\n";
   }
 
   auto status{IONAME(EndIoStatement)(cookie)};
   ASSERT_FALSE(status) << "Failed complex list-directed input, status "
-    << static_cast<int>(status);
+                       << static_cast<int>(status);
 
   char output[33];
   output[32] = '\0';
   cookie = IONAME(BeginInternalListOutput)(output, 32);
   for (int j{0}; j < 6; j += 2) {
     ASSERT_TRUE(IONAME(OutputComplex32)(cookie, z[j], z[j + 1]))
-      << "OutputComplex32 failed";
+        << "OutputComplex32 failed";
   }
 
   status = IONAME(EndIoStatement)(cookie);
   static const char expect[33]{" (-1.,-2.) (-3.,-4.) (5.,6.)    "};
   ASSERT_FALSE(status) << "Failed complex list-directed output, status "
-      << static_cast<int>(status);
-  ASSERT_EQ(std::strncmp(output, expect, 33), 0) 
-    << "Failed complex list-directed output, expected '" << expect
-    << "', but got '" << output << "'";
+                       << static_cast<int>(status);
+  ASSERT_EQ(std::strncmp(output, expect, 33), 0)
+      << "Failed complex list-directed output, expected '" << expect
+      << "', but got '" << output << "'";
   EndTests();
 }
 
@@ -168,8 +171,9 @@ TEST(IOApiTests, DescriptorOutputTest) {
   IONAME(OutputDescriptor)(cookie, desc);
 
   auto formatStatus{IONAME(EndIoStatement)(cookie)};
-  ASSERT_FALSE(formatStatus) << "descrOutputTest: '" << format << "' failed, status "
-    << static_cast<int>(formatStatus);
+  ASSERT_FALSE(formatStatus)
+      << "descrOutputTest: '" << format << "' failed, status "
+      << static_cast<int>(formatStatus);
   VerifyFormat("descrOutputTest(formatted)", "ABCDEFGH ",
       std::string{buffer, sizeof buffer});
 
@@ -177,37 +181,38 @@ TEST(IOApiTests, DescriptorOutputTest) {
   cookie = IONAME(BeginInternalListOutput)(buffer, sizeof buffer);
   IONAME(OutputDescriptor)(cookie, desc);
   auto listDirectedStatus{IONAME(EndIoStatement)(cookie)};
-  ASSERT_FALSE(listDirectedStatus) << "descrOutputTest: list-directed failed, status "
-    << static_cast<int>(listDirectedStatus);
-  VerifyFormat("descrOutputTest(list)", " ABCDEFGH",
-      std::string{buffer, sizeof buffer});
+  ASSERT_FALSE(listDirectedStatus)
+      << "descrOutputTest: list-directed failed, status "
+      << static_cast<int>(listDirectedStatus);
+  VerifyFormat(
+      "descrOutputTest(list)", " ABCDEFGH", std::string{buffer, sizeof buffer});
   EndTests();
 }
 
 TEST(IOApiTests, FormatZeroes) {
   StartTests();
-  static constexpr std::pair<const char*, const char*> zeroes[] {
-    {"(E32.17,';')", "         0.00000000000000000E+00;"},
-    {"(F32.17,';')", "             0.00000000000000000;"},
-    {"(G32.17,';')", "          0.0000000000000000    ;"},
-    {"(DC,E32.17,';')", "         0,00000000000000000E+00;"},
-    {"(DC,F32.17,';')", "             0,00000000000000000;"},
-    {"(DC,G32.17,';')", "          0,0000000000000000    ;"},
-    {"(D32.17,';')", "         0.00000000000000000D+00;"},
-    {"(E32.17E1,';')", "          0.00000000000000000E+0;"},
-    {"(G32.17E1,';')", "           0.0000000000000000   ;"},
-    {"(E32.17E0,';')", "          0.00000000000000000E+0;"},
-    {"(G32.17E0,';')", "          0.0000000000000000    ;"},
-    {"(1P,E32.17,';')", "         0.00000000000000000E+00;"},
-    {"(1PE32.17,';')", "         0.00000000000000000E+00;"}, // no comma
-    {"(1P,F32.17,';')", "             0.00000000000000000;"},
-    {"(1P,G32.17,';')", "          0.0000000000000000    ;"},
-    {"(2P,E32.17,';')", "         00.0000000000000000E+00;"},
-    {"(-1P,E32.17,';')", "         0.00000000000000000E+00;"},
-    {"(G0,';')", "0.;"},
+  static constexpr std::pair<const char *, const char *> zeroes[]{
+      {"(E32.17,';')", "         0.00000000000000000E+00;"},
+      {"(F32.17,';')", "             0.00000000000000000;"},
+      {"(G32.17,';')", "          0.0000000000000000    ;"},
+      {"(DC,E32.17,';')", "         0,00000000000000000E+00;"},
+      {"(DC,F32.17,';')", "             0,00000000000000000;"},
+      {"(DC,G32.17,';')", "          0,0000000000000000    ;"},
+      {"(D32.17,';')", "         0.00000000000000000D+00;"},
+      {"(E32.17E1,';')", "          0.00000000000000000E+0;"},
+      {"(G32.17E1,';')", "           0.0000000000000000   ;"},
+      {"(E32.17E0,';')", "          0.00000000000000000E+0;"},
+      {"(G32.17E0,';')", "          0.0000000000000000    ;"},
+      {"(1P,E32.17,';')", "         0.00000000000000000E+00;"},
+      {"(1PE32.17,';')", "         0.00000000000000000E+00;"}, // no comma
+      {"(1P,F32.17,';')", "             0.00000000000000000;"},
+      {"(1P,G32.17,';')", "          0.0000000000000000    ;"},
+      {"(2P,E32.17,';')", "         00.0000000000000000E+00;"},
+      {"(-1P,E32.17,';')", "         0.00000000000000000E+00;"},
+      {"(G0,';')", "0.;"},
   };
 
-  for(auto const& [format, expect] : zeroes) {
+  for (auto const &[format, expect] : zeroes) {
     VerifyRealFormat(format, 0.0, expect);
   }
   EndTests();
@@ -215,29 +220,29 @@ TEST(IOApiTests, FormatZeroes) {
 
 TEST(IOApiTests, FormatOnes) {
   StartTests();
-  static constexpr std::pair<const char*, const char*> ones[] {
-    {"(E32.17,';')", "         0.10000000000000000E+01;"},
-    {"(F32.17,';')", "             1.00000000000000000;"},
-    {"(G32.17,';')", "          1.0000000000000000    ;"},
-    {"(E32.17E1,';')", "          0.10000000000000000E+1;"},
-    {"(G32.17E1,';')", "           1.0000000000000000   ;"},
-    {"(E32.17E0,';')", "          0.10000000000000000E+1;"},
-    {"(G32.17E0,';')", "          1.0000000000000000    ;"},
-    {"(E32.17E4,';')", "       0.10000000000000000E+0001;"},
-    {"(G32.17E4,';')", "        1.0000000000000000      ;"},
-    {"(1P,E32.17,';')", "         1.00000000000000000E+00;"},
-    {"(1PE32.17,';')", "         1.00000000000000000E+00;"}, // no comma
-    {"(1P,F32.17,';')", "            10.00000000000000000;"},
-    {"(1P,G32.17,';')", "          1.0000000000000000    ;"},
-    {"(ES32.17,';')", "         1.00000000000000000E+00;"},
-    {"(2P,E32.17,';')", "         10.0000000000000000E-01;"},
-    {"(2P,G32.17,';')", "          1.0000000000000000    ;"},
-    {"(-1P,E32.17,';')", "         0.01000000000000000E+02;"},
-    {"(-1P,G32.17,';')", "          1.0000000000000000    ;"},
-    {"(G0,';')", "1.;"},
+  static constexpr std::pair<const char *, const char *> ones[]{
+      {"(E32.17,';')", "         0.10000000000000000E+01;"},
+      {"(F32.17,';')", "             1.00000000000000000;"},
+      {"(G32.17,';')", "          1.0000000000000000    ;"},
+      {"(E32.17E1,';')", "          0.10000000000000000E+1;"},
+      {"(G32.17E1,';')", "           1.0000000000000000   ;"},
+      {"(E32.17E0,';')", "          0.10000000000000000E+1;"},
+      {"(G32.17E0,';')", "          1.0000000000000000    ;"},
+      {"(E32.17E4,';')", "       0.10000000000000000E+0001;"},
+      {"(G32.17E4,';')", "        1.0000000000000000      ;"},
+      {"(1P,E32.17,';')", "         1.00000000000000000E+00;"},
+      {"(1PE32.17,';')", "         1.00000000000000000E+00;"}, // no comma
+      {"(1P,F32.17,';')", "            10.00000000000000000;"},
+      {"(1P,G32.17,';')", "          1.0000000000000000    ;"},
+      {"(ES32.17,';')", "         1.00000000000000000E+00;"},
+      {"(2P,E32.17,';')", "         10.0000000000000000E-01;"},
+      {"(2P,G32.17,';')", "          1.0000000000000000    ;"},
+      {"(-1P,E32.17,';')", "         0.01000000000000000E+02;"},
+      {"(-1P,G32.17,';')", "          1.0000000000000000    ;"},
+      {"(G0,';')", "1.;"},
   };
 
-  for(auto const& [format, expect] : ones) {
+  for (auto const &[format, expect] : ones) {
     VerifyRealFormat(format, 1.0, expect);
   }
   EndTests();
@@ -245,13 +250,13 @@ TEST(IOApiTests, FormatOnes) {
 
 TEST(IOApiTests, FormatNegativeOnes) {
   StartTests();
-  static constexpr std::tuple<const char*, const char*> negOnes[] {
-    {"(E32.17,';')", "        -0.10000000000000000E+01;"},
-    {"(F32.17,';')", "            -1.00000000000000000;"},
-    {"(G32.17,';')", "         -1.0000000000000000    ;"},
-    {"(G0,';')", "-1.;"},
+  static constexpr std::tuple<const char *, const char *> negOnes[]{
+      {"(E32.17,';')", "        -0.10000000000000000E+01;"},
+      {"(F32.17,';')", "            -1.00000000000000000;"},
+      {"(G32.17,';')", "         -1.0000000000000000    ;"},
+      {"(G0,';')", "-1.;"},
   };
-  for(auto const& [format, expect] : negOnes) {
+  for (auto const &[format, expect] : negOnes) {
     VerifyRealFormat(format, -1.0, expect);
   }
   EndTests();
@@ -532,9 +537,12 @@ TEST(IOApiTests, FormatDoubleInputValues) {
   VerifyRealInputFormat("(F18.3)", "               125", 0x3fc0000000000000);
   VerifyRealInputFormat(
       "(-1P,F18.0)", "               125", 0x4093880000000000); // 1250
-  VerifyRealInputFormat("(1P,F18.0)", "               125", 0x4029000000000000); // 12.5
-  VerifyRealInputFormat("(BZ,F18.0)", "              125 ", 0x4093880000000000); // 1250
-  VerifyRealInputFormat("(BZ,F18.0)", "       125 . e +1 ", 0x42a6bcc41e900000); // 1.25e13
+  VerifyRealInputFormat(
+      "(1P,F18.0)", "               125", 0x4029000000000000); // 12.5
+  VerifyRealInputFormat(
+      "(BZ,F18.0)", "              125 ", 0x4093880000000000); // 1250
+  VerifyRealInputFormat(
+      "(BZ,F18.0)", "       125 . e +1 ", 0x42a6bcc41e900000); // 1.25e13
   VerifyRealInputFormat("(DC,F18.0)", "              12,5", 0x4029000000000000);
   EndTests();
 }

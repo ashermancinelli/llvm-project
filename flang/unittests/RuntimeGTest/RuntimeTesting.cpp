@@ -21,9 +21,22 @@ static void CatchCrash(
   failures++;
 }
 
-int GetNumRuntimeCrashes() {
-  return failures;
+RuntimeTestFixture::RuntimeTestFixture() : IsCrashHandlerRegistered{false} {}
+
+void RuntimeTestFixture::SetUp() {
+  if (not IsCrashHandlerRegistered)
+    Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrash);
+  IsCrashHandlerRegistered = true;
 }
+
+void RuntimeTestFixture::TearDown() {
+  ASSERT_EQ(failures, 0) << "Found " << failures
+                         << " runtime crashes in teardown phase of test "
+                         << ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  failures = 0;
+}
+
+int GetNumRuntimeCrashes() { return failures; }
 
 void StartTests() {
   if (hasRunStartTests)

@@ -4,6 +4,15 @@
 #include "gtest/gtest.h"
 #include <cstddef>
 
+struct RuntimeTestFixture : ::testing::Test {
+  RuntimeTestFixture();
+  void SetUp();
+  void TearDown();
+
+private:
+  bool IsCrashHandlerRegistered;
+};
+
 // Number of runtime crashes discoverd by the crash handler registered in the
 // `StartTests` function below.
 int GetNumRuntimeCrashes();

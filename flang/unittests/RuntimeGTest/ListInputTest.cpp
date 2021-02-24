@@ -44,19 +44,20 @@ TEST(InputTest, ListInput) {
 
   auto status{IONAME(EndIoStatement)(cookie)};
   ASSERT_FALSE((bool)status) << "list-directed input failed, status "
-    << static_cast<int>(status) << '\n';
+                             << static_cast<int>(status) << '\n';
   ASSERT_NO_CRASHES() << __FILE__ << ' ' << __LINE__;
 
   for (j = 0; j < 9; ++j) {
-    ASSERT_EQ(n[j], want[j]) << "wanted n[" << j << "]==" << want[j]
-      << ", got " << n[j] << '\n';
+    ASSERT_EQ(n[j], want[j])
+        << "wanted n[" << j << "]==" << want[j] << ", got " << n[j] << '\n';
   }
   ASSERT_NO_CRASHES() << __FILE__ << ' ' << __LINE__;
 
   for (j = 0; j < 2; ++j) {
     ASSERT_EQ(std::strcmp(asc[j],
-          "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ "), 0)
-      << "wanted asc[" << j << "]=alphabets, got '" << asc[j] << "'\n";
+                  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ "),
+        0)
+        << "wanted asc[" << j << "]=alphabets, got '" << asc[j] << "'\n";
   }
   ASSERT_NO_CRASHES() << __FILE__ << ' ' << __LINE__;
   EndTests();

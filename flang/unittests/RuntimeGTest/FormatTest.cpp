@@ -1,13 +1,13 @@
 // Tests basic FORMAT string traversal
 
 #include "RuntimeTesting.h"
+#include "gtest/gtest.h"
 #include "../runtime/format-implementation.h"
 #include "../runtime/io-error.h"
-#include "gtest/gtest.h"
-#include <tuple>
 #include <cstdarg>
 #include <cstring>
 #include <string>
+#include <tuple>
 #include <vector>
 
 using namespace Fortran::runtime;
@@ -107,7 +107,7 @@ void TestFormatContext::Check(Results &expect) {
 }
 
 // Tuple of types over which the test cases are parameterized
-using Params = std::tuple<int, const char*, Results, int>;
+using Params = std::tuple<int, const char *, Results, int>;
 
 // Fixture which constructs needed components for each test, includeing a
 // TestFormatContext
@@ -118,12 +118,13 @@ struct FormatTestsFixture : ::testing::TestWithParam<Params> {
   }
   virtual void TearDown() {
     ASSERT_NO_CRASHES() << " In teardown of FormatTestsFixture " << __FILE__
-      << __LINE__;
+                        << __LINE__;
     EndTests();
   }
+
 protected:
   int n;
-  const char* format;
+  const char *format;
   Results expect;
   int repeat;
   TestFormatContext context;
@@ -146,20 +147,19 @@ TEST_P(FormatTestsFixture, FormatStringTraversal) {
   ASSERT_NO_CRASHES() << __FILE__ << " " << __LINE__;
 }
 
-// Trailing ',' in this macro suppresses a warning which is emmitted even when 
+// Trailing ',' in this macro suppresses a warning which is emmitted even when
 // the macro is used correctly
 INSTANTIATE_TEST_CASE_P(FormatTests, FormatTestsFixture,
     ::testing::Values(
-      std::make_tuple(1, "('PI=',F9.7)", Results{"'PI='", "F9.7"}, 1)
-      , std::make_tuple(1, "(3HPI=F9.7)", Results{"'PI='", "F9.7"}, 1)
-      , std::make_tuple(1, "(3HPI=/F9.7)", Results{"'PI='", "/", "F9.7"}, 1)
-      , std::make_tuple(2, "('PI=',F9.7)", Results{
-        "'PI='", "F9.7", "/", "'PI='", "F9.7"}, 1)
-      , std::make_tuple(2, "(2('PI=',F9.7),'done')", Results{
-        "'PI='", "F9.7", "'PI='", "F9.7", "'done'"}, 1)
-      , std::make_tuple(2, "(3('PI=',F9.7,:),'tooFar')", Results{
-        "'PI='", "F9.7", "'PI='", "F9.7"}, 1)
-      , std::make_tuple(2, "(*('PI=',F9.7,:),'tooFar')", Results{
-        "'PI='", "F9.7", "'PI='", "F9.7"}, 1)
-      , std::make_tuple(1, "(3F9.7)", Results{"2*F9.7"}, 2)
-      ),);
+        std::make_tuple(1, "('PI=',F9.7)", Results{"'PI='", "F9.7"}, 1),
+        std::make_tuple(1, "(3HPI=F9.7)", Results{"'PI='", "F9.7"}, 1),
+        std::make_tuple(1, "(3HPI=/F9.7)", Results{"'PI='", "/", "F9.7"}, 1),
+        std::make_tuple(2, "('PI=',F9.7)",
+            Results{"'PI='", "F9.7", "/", "'PI='", "F9.7"}, 1),
+        std::make_tuple(2, "(2('PI=',F9.7),'done')",
+            Results{"'PI='", "F9.7", "'PI='", "F9.7", "'done'"}, 1),
+        std::make_tuple(2, "(3('PI=',F9.7,:),'tooFar')",
+            Results{"'PI='", "F9.7", "'PI='", "F9.7"}, 1),
+        std::make_tuple(2, "(*('PI=',F9.7,:),'tooFar')",
+            Results{"'PI='", "F9.7", "'PI='", "F9.7"}, 1),
+        std::make_tuple(1, "(3F9.7)", Results{"2*F9.7"}, 2)), );
