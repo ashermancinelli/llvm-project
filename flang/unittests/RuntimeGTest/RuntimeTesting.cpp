@@ -8,8 +8,6 @@
 
 static int failures{0};
 
-static bool hasRunStartTests{false};
-
 // Override the Fortran runtime's Crash() for testing purposes
 static void CatchCrash(
     const char *sourceFile, int sourceLine, const char *message, va_list &ap) {
@@ -30,9 +28,9 @@ void RuntimeTestFixture::SetUp() {
 }
 
 void RuntimeTestFixture::TearDown() {
-  ASSERT_EQ(failures, 0) << "Found " << failures
-                         << " runtime crashes in teardown phase of test "
-                         << ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  ASSERT_EQ(failures, 0)
+      << "Found " << failures << " runtime crashes in teardown phase of test "
+      << ::testing::UnitTest::GetInstance()->current_test_info()->name();
   failures = 0;
 }
 
