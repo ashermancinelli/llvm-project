@@ -8,8 +8,6 @@
 
 static int failures{0};
 
-static bool hasRunStartTests{false};
-
 // Override the Fortran runtime's Crash() for testing purposes
 [[noreturn]] static void CatchCrash(
     const char *sourceFile, int sourceLine, const char *message, va_list &ap) {
@@ -18,32 +16,11 @@ static bool hasRunStartTests{false};
   va_end(ap);
   llvm::errs() << (sourceFile ? sourceFile : "unknown source file") << '('
                << sourceLine << "): CRASH: " << buffer << '\n';
-  failures++;
   throw std::string{buffer};
 }
 
-static void CatchCrashNoThrow(
-    const char *sourceFile, int sourceLine, const char *message, va_list &ap) {
-  char buffer[1000];
-  std::vsnprintf(buffer, sizeof buffer, message, ap);
-  va_end(ap);
-  llvm::errs() << (sourceFile ? sourceFile : "unknown source file") << '('
-               << sourceLine << "): CRASH: " << buffer << '\n';
-  failures++;
-}
-
-int GetNumRuntimeCrashes() {
-  return failures;
-}
-
-void StartTests(bool rethrow/*=true*/) {
-  if (hasRunStartTests)
-    return;
-  if (rethrow)
-    Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrash);
-  else
-    Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrashNoThrow);
-  hasRunStartTests = true;
+void StartTests() {
+  Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrash);
 }
 
 llvm::raw_ostream &Fail() {
