@@ -36,20 +36,6 @@ void RuntimeTestFixture::TearDown() {
   failures = 0;
 }
 
-int GetNumRuntimeCrashes() { return failures; }
-
-void StartTests() {
-  if (hasRunStartTests)
-    return;
-  Fortran::runtime::Terminator::RegisterCrashHandler(CatchCrash);
-  hasRunStartTests = true;
-}
-
-void EndTests() {
-  ASSERT_NO_CRASHES();
-  failures = 0;
-}
-
 void SetCharacter(char *to, std::size_t n, const char *from) {
   auto len{std::strlen(from)};
   std::memcpy(to, from, std::min(len, n));
