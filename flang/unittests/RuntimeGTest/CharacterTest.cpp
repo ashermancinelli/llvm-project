@@ -1,5 +1,16 @@
-// Basic sanity tests of CHARACTER API; exhaustive testing will be done
-// in Fortran.
+//===-- flang/unittests/RuntimeGTest/CharacterTest.cpp ----------*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// Basic sanity tests of CHARACTER API; exhaustive testing will be done
+/// in Fortran.
+///
+//===----------------------------------------------------------------------===//
 
 #include "../../runtime/character.h"
 #include "RuntimeTesting.h"
@@ -13,18 +24,17 @@ using namespace Fortran::runtime;
 struct CharacterTests : RuntimeTestFixture {};
 
 TEST_F(CharacterTests, AppendAndPad) {
-  for (std::size_t limit{0}; limit < 8; ++limit) {
-    char x[8];
-    std::size_t xLen{0};
+  static constexpr limitMax{8};
+  static char x[limitMax];
+  std::size_t xLen{0};
+  for (std::size_t limit{0}; limit < limitMax; ++limit) {
     std::memset(x, 0, sizeof x);
     xLen = RTNAME(CharacterAppend1)(x, limit, xLen, "abc", 3);
     xLen = RTNAME(CharacterAppend1)(x, limit, xLen, "DE", 2);
     RTNAME(CharacterPad1)(x, limit, xLen);
     ASSERT_LE(xLen, limit) << "xLen " << xLen << ">" << limit;
-    if (x[limit]) {
-      EXPECT_TRUE(false) << "x[" << limit << "]='" << x[limit] << "'\n";
-      x[limit] = '\0';
-    }
+    EXPECT_NE(x[limit], '\0') << "x[" << limit << "]='" << x[limit] << "'";
+    x[limit] = '\0';
     ASSERT_FALSE(std::memcmp(x, "abcDE   ", limit)) << "x = '" << x << "'";
   }
 }
