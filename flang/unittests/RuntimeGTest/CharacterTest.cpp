@@ -54,57 +54,60 @@ TEST(CharacterTests, CharacterAppend1Overrun) {
 //------------------------------------------------------------------------------
 
 template <typename CHAR>
-using COMPARISON_FUNC =
+using ComparisonFuncTy =
     std::function<int(const CHAR *, const CHAR *, std::size_t, std::size_t)>;
 
-static std::tuple<COMPARISON_FUNC<char>, COMPARISON_FUNC<char16_t>,
-    COMPARISON_FUNC<char32_t>>
-    ComparisonFuncs{
-        RTNAME(CharacterCompareScalar1),
-        RTNAME(CharacterCompareScalar2),
-        RTNAME(CharacterCompareScalar4),
-    };
+using ComparisonFuncsTy = std::tuple<ComparisonFuncTy<char>,
+    ComparisonFuncTy<char16_t>, ComparisonFuncTy<char32_t>>;
+
+// These comparison functions are the systems under test in the
+// CharacterComparisonTests test cases.
+static ComparisonFuncsTy comparisonFuncs{
+    RTNAME(CharacterCompareScalar1),
+    RTNAME(CharacterCompareScalar2),
+    RTNAME(CharacterCompareScalar4),
+};
 
 // Types of _values_ over which comparison tests are parameterized
 template <typename CHAR>
-using COMPARISON_PARAMETER =
-    std::tuple<const CHAR *, const CHAR *, int, int, int>;
+using ComparisonParametersTy =
+    std::vector<std::tuple<const CHAR *, const CHAR *, int, int, int>>;
 
-static std::tuple<std::vector<COMPARISON_PARAMETER<char>>,
-    std::vector<COMPARISON_PARAMETER<char16_t>>,
-    std::vector<COMPARISON_PARAMETER<char32_t>>>
-    ComparisonParameters{{
-                             std::make_tuple("abc", "abc", 3, 3, 0),
-                             std::make_tuple("abc", "def", 3, 3, -1),
-                             std::make_tuple("ab ", "abc", 3, 2, 0),
-                             std::make_tuple("abc", "abc", 2, 3, -1),
-                         },
-        {
-            std::make_tuple(u"abc", u"abc", 3, 3, 0),
-            std::make_tuple(u"abc", u"def", 3, 3, -1),
-            std::make_tuple(u"ab ", u"abc", 3, 2, 0),
-            std::make_tuple(u"abc", u"abc", 2, 3, -1),
-        },
-        {
-            std::make_tuple(U"abc", U"abc", 3, 3, 0),
-            std::make_tuple(U"abc", U"def", 3, 3, -1),
-            std::make_tuple(U"ab ", U"abc", 3, 2, 0),
-            std::make_tuple(U"abc", U"abc", 2, 3, -1),
-        }};
+using ComparisonTestCasesTy = std::tuple<ComparisonParametersTy<char>,
+    ComparisonParametersTy<char16_t>, ComparisonParametersTy<char32_t>>;
+
+static ComparisonTestCasesTy comparisonTestCases{
+    {
+        std::make_tuple("abc", "abc", 3, 3, 0),
+        std::make_tuple("abc", "def", 3, 3, -1),
+        std::make_tuple("ab ", "abc", 3, 2, 0),
+        std::make_tuple("abc", "abc", 2, 3, -1),
+    },
+    {
+        std::make_tuple(u"abc", u"abc", 3, 3, 0),
+        std::make_tuple(u"abc", u"def", 3, 3, -1),
+        std::make_tuple(u"ab ", u"abc", 3, 2, 0),
+        std::make_tuple(u"abc", u"abc", 2, 3, -1),
+    },
+    {
+        std::make_tuple(U"abc", U"abc", 3, 3, 0),
+        std::make_tuple(U"abc", U"def", 3, 3, -1),
+        std::make_tuple(U"ab ", U"abc", 3, 2, 0),
+        std::make_tuple(U"abc", U"abc", 2, 3, -1),
+    }};
 
 template <typename CHAR>
 struct CharacterComparisonTests : public ::testing::Test {
   CharacterComparisonTests()
-      : parameters{std::get<std::vector<COMPARISON_PARAMETER<CHAR>>>(
-            ComparisonParameters)},
+      : parameters{std::get<ComparisonParametersTy<CHAR>>(comparisonTestCases)},
         characterComparisonFunc{
-            std::get<COMPARISON_FUNC<CHAR>>(ComparisonFuncs)} {}
-  std::vector<COMPARISON_PARAMETER<CHAR>> parameters;
-  COMPARISON_FUNC<CHAR> characterComparisonFunc;
+            std::get<ComparisonFuncTy<CHAR>>(comparisonFuncs)} {}
+  ComparisonParametersTy<CHAR> parameters;
+  ComparisonFuncTy<CHAR> characterComparisonFunc;
 };
 
-using CHARACTERS = ::testing::Types<char, char16_t, char32_t>;
-TYPED_TEST_CASE(CharacterComparisonTests, CHARACTERS);
+using CharacterTypes = ::testing::Types<char, char16_t, char32_t>;
+TYPED_TEST_CASE(CharacterComparisonTests, CharacterTypes);
 
 TYPED_TEST(CharacterComparisonTests, CompareCharacters) {
   for (auto &[x, y, xBytes, yBytes, expect] : this->parameters) {
@@ -138,58 +141,63 @@ TYPED_TEST(CharacterComparisonTests, CompareCharacters) {
 //------------------------------------------------------------------------------
 
 template <typename CHAR>
-using SCAN_FUNC = std::function<int(
+using ScanFuncTy = std::function<int(
     const CHAR *, std::size_t, const CHAR *, std::size_t, bool)>;
 
-static std::tuple<SCAN_FUNC<char>, SCAN_FUNC<char16_t>, SCAN_FUNC<char32_t>>
-    ScanFuncs{
-        RTNAME(Scan1),
-        RTNAME(Scan2),
-        RTNAME(Scan4),
-    };
+using ScanFuncsTy =
+    std::tuple<ScanFuncTy<char>, ScanFuncTy<char16_t>, ScanFuncTy<char32_t>>;
+
+// These functions are the systems under test in CharacterScanTests test cases.
+static ScanFuncsTy scanFuncs{
+    RTNAME(Scan1),
+    RTNAME(Scan2),
+    RTNAME(Scan4),
+};
 
 // Types of _values_ over which tests are parameterized
 template <typename CHAR>
-using SCAN_PARAMETER = std::tuple<const CHAR *, const CHAR *, bool, int>;
+using ScanParametersTy =
+    std::vector<std::tuple<const CHAR *, const CHAR *, bool, int>>;
 
-static std::tuple<std::vector<SCAN_PARAMETER<char>>,
-    std::vector<SCAN_PARAMETER<char16_t>>,
-    std::vector<SCAN_PARAMETER<char32_t>>>
-    ScanParameters{{
-                       std::make_tuple("abc", "abc", false, 1),
-                       std::make_tuple("abc", "abc", true, 3),
-                       std::make_tuple("abc", "cde", false, 3),
-                       std::make_tuple("abc", "cde", true, 3),
-                       std::make_tuple("abc", "x", false, 0),
-                       std::make_tuple("", "x", false, 0),
-                   },
-        {
-            std::make_tuple(u"abc", u"abc", false, 1),
-            std::make_tuple(u"abc", u"abc", true, 3),
-            std::make_tuple(u"abc", u"cde", false, 3),
-            std::make_tuple(u"abc", u"cde", true, 3),
-            std::make_tuple(u"abc", u"x", false, 0),
-            std::make_tuple(u"", u"x", false, 0),
-        },
-        {
-            std::make_tuple(U"abc", U"abc", false, 1),
-            std::make_tuple(U"abc", U"abc", true, 3),
-            std::make_tuple(U"abc", U"cde", false, 3),
-            std::make_tuple(U"abc", U"cde", true, 3),
-            std::make_tuple(U"abc", U"x", false, 0),
-            std::make_tuple(U"", U"x", false, 0),
-        }};
+using ScanTestCasesTy = std::tuple<ScanParametersTy<char>,
+    ScanParametersTy<char16_t>, ScanParametersTy<char32_t>>;
+
+static ScanTestCasesTy scanTestCases{
+    {
+        std::make_tuple("abc", "abc", false, 1),
+        std::make_tuple("abc", "abc", true, 3),
+        std::make_tuple("abc", "cde", false, 3),
+        std::make_tuple("abc", "cde", true, 3),
+        std::make_tuple("abc", "x", false, 0),
+        std::make_tuple("", "x", false, 0),
+    },
+    {
+        std::make_tuple(u"abc", u"abc", false, 1),
+        std::make_tuple(u"abc", u"abc", true, 3),
+        std::make_tuple(u"abc", u"cde", false, 3),
+        std::make_tuple(u"abc", u"cde", true, 3),
+        std::make_tuple(u"abc", u"x", false, 0),
+        std::make_tuple(u"", u"x", false, 0),
+    },
+    {
+        std::make_tuple(U"abc", U"abc", false, 1),
+        std::make_tuple(U"abc", U"abc", true, 3),
+        std::make_tuple(U"abc", U"cde", false, 3),
+        std::make_tuple(U"abc", U"cde", true, 3),
+        std::make_tuple(U"abc", U"x", false, 0),
+        std::make_tuple(U"", U"x", false, 0),
+    }};
 
 template <typename CHAR> struct CharacterScanTests : public ::testing::Test {
   CharacterScanTests()
-      : parameters{std::get<std::vector<SCAN_PARAMETER<CHAR>>>(ScanParameters)},
-        characterScanFunc{std::get<SCAN_FUNC<CHAR>>(ScanFuncs)} {}
-  std::vector<SCAN_PARAMETER<CHAR>> parameters;
-  SCAN_FUNC<CHAR> characterScanFunc;
+      : parameters{std::get<ScanParametersTy<CHAR>>(scanTestCases)},
+        characterScanFunc{std::get<ScanFuncTy<CHAR>>(scanFuncs)} {}
+  ScanParametersTy<CHAR> parameters;
+  ScanFuncTy<CHAR> characterScanFunc;
 };
 
 // Type-parameterized over the same character types as CharacterComparisonTests
-TYPED_TEST_CASE(CharacterScanTests, CHARACTERS);
+TYPED_TEST_CASE(CharacterScanTests, CharacterTypes);
 
 TYPED_TEST(CharacterScanTests, ScanCharacters) {
   for (auto const &[str, set, back, expect] : this->parameters) {
@@ -205,60 +213,63 @@ TYPED_TEST(CharacterScanTests, ScanCharacters) {
 /// Tests and infrastructure for Verify functions
 //------------------------------------------------------------------------------
 template <typename CHAR>
-using VERIFY_FUNC = std::function<int(
+using VerifyFuncTy = std::function<int(
     const CHAR *, std::size_t, const CHAR *, std::size_t, bool)>;
 
-static std::tuple<VERIFY_FUNC<char>, VERIFY_FUNC<char16_t>,
-    VERIFY_FUNC<char32_t>>
-    VerifyFuncs{
-        RTNAME(Verify1),
-        RTNAME(Verify2),
-        RTNAME(Verify4),
-    };
+using VerifyFuncsTy = std::tuple<VerifyFuncTy<char>, VerifyFuncTy<char16_t>,
+    VerifyFuncTy<char32_t>>;
+
+// These functions are the systems under test in CharacterVerifyTests test cases
+static VerifyFuncsTy verifyFuncs{
+    RTNAME(Verify1),
+    RTNAME(Verify2),
+    RTNAME(Verify4),
+};
 
 // Types of _values_ over which tests are parameterized
 template <typename CHAR>
-using VERIFY_PARAMETER = std::tuple<const CHAR *, const CHAR *, bool, int>;
+using VerifyParametersTy =
+    std::vector<std::tuple<const CHAR *, const CHAR *, bool, int>>;
 
-static std::tuple<std::vector<VERIFY_PARAMETER<char>>,
-    std::vector<VERIFY_PARAMETER<char16_t>>,
-    std::vector<VERIFY_PARAMETER<char32_t>>>
-    VerifyParameters{{
-                         std::make_tuple("abc", "abc", false, 0),
-                         std::make_tuple("abc", "abc", true, 0),
-                         std::make_tuple("abc", "cde", false, 1),
-                         std::make_tuple("abc", "cde", true, 2),
-                         std::make_tuple("abc", "x", false, 1),
-                         std::make_tuple("", "x", false, 0),
-                     },
-        {
-            std::make_tuple(u"abc", u"abc", false, 0),
-            std::make_tuple(u"abc", u"abc", true, 0),
-            std::make_tuple(u"abc", u"cde", false, 1),
-            std::make_tuple(u"abc", u"cde", true, 2),
-            std::make_tuple(u"abc", u"x", false, 1),
-            std::make_tuple(u"", u"x", false, 0),
-        },
-        {
-            std::make_tuple(U"abc", U"abc", false, 0),
-            std::make_tuple(U"abc", U"abc", true, 0),
-            std::make_tuple(U"abc", U"cde", false, 1),
-            std::make_tuple(U"abc", U"cde", true, 2),
-            std::make_tuple(U"abc", U"x", false, 1),
-            std::make_tuple(U"", U"x", false, 0),
-        }};
+using VerifyTestCasesTy = std::tuple<VerifyParametersTy<char>,
+    VerifyParametersTy<char16_t>, VerifyParametersTy<char32_t>>;
+
+static VerifyTestCasesTy verifyTestCases{
+    {
+        std::make_tuple("abc", "abc", false, 0),
+        std::make_tuple("abc", "abc", true, 0),
+        std::make_tuple("abc", "cde", false, 1),
+        std::make_tuple("abc", "cde", true, 2),
+        std::make_tuple("abc", "x", false, 1),
+        std::make_tuple("", "x", false, 0),
+    },
+    {
+        std::make_tuple(u"abc", u"abc", false, 0),
+        std::make_tuple(u"abc", u"abc", true, 0),
+        std::make_tuple(u"abc", u"cde", false, 1),
+        std::make_tuple(u"abc", u"cde", true, 2),
+        std::make_tuple(u"abc", u"x", false, 1),
+        std::make_tuple(u"", u"x", false, 0),
+    },
+    {
+        std::make_tuple(U"abc", U"abc", false, 0),
+        std::make_tuple(U"abc", U"abc", true, 0),
+        std::make_tuple(U"abc", U"cde", false, 1),
+        std::make_tuple(U"abc", U"cde", true, 2),
+        std::make_tuple(U"abc", U"x", false, 1),
+        std::make_tuple(U"", U"x", false, 0),
+    }};
 
 template <typename CHAR> struct CharacterVerifyTests : public ::testing::Test {
   CharacterVerifyTests()
-      : parameters{std::get<std::vector<VERIFY_PARAMETER<CHAR>>>(
-            VerifyParameters)},
-        characterVerifyFunc{std::get<VERIFY_FUNC<CHAR>>(VerifyFuncs)} {}
-  std::vector<VERIFY_PARAMETER<CHAR>> parameters;
-  VERIFY_FUNC<CHAR> characterVerifyFunc;
+      : parameters{std::get<VerifyParametersTy<CHAR>>(verifyTestCases)},
+        characterVerifyFunc{std::get<VerifyFuncTy<CHAR>>(verifyFuncs)} {}
+  VerifyParametersTy<CHAR> parameters;
+  VerifyFuncTy<CHAR> characterVerifyFunc;
 };
 
 // Type-parameterized over the same character types as CharacterComparisonTests
-TYPED_TEST_CASE(CharacterVerifyTests, CHARACTERS);
+TYPED_TEST_CASE(CharacterVerifyTests, CharacterTypes);
 
 TYPED_TEST(CharacterVerifyTests, VerifyCharacters) {
   for (auto const &[str, set, back, expect] : this->parameters) {
