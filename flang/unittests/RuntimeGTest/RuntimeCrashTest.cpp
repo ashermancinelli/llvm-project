@@ -5,6 +5,11 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+//
+/// Selected APIs are tested here to support development of unit tests for other
+/// runtime components and ensure the test fixture handles crashes as we expect.
+//
+//===----------------------------------------------------------------------===//
 #include "CrashHandlerFixture.h"
 #include "../../runtime/io-api.h"
 #include "../../runtime/terminator.h"
@@ -51,7 +56,7 @@ TEST(TestIOCrash, FormatDescriptorWriteMismatchTest) {
   static const char *format{"(A4)"};
   auto *cookie{IONAME(BeginInternalFormattedOutput)(
       buffer, bufferSize, format, std::strlen(format))};
-  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, 0xfeedface),
+  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, /*output_value=*/0xfeedface),
       "Data edit descriptor 'A' may not be used with an INTEGER data item");
 }
 
@@ -61,12 +66,15 @@ TEST(TestIOCrash, InvalidFormatCharacterTest) {
   static const char *format{"(C1)"};
   auto *cookie{IONAME(BeginInternalFormattedOutput)(
       buffer, bufferSize, format, std::strlen(format))};
-  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, 0xfeedface),
+  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, /*output_value=*/0xfeedface),
       "Unknown 'C' edit descriptor in FORMAT");
 }
 
 //------------------------------------------------------------------------------
 /// Test buffer overwrites with Output* functions
+/// Each test performs the tested IO operation correctly first, before causing
+/// an overwrite to demonstrate that the failure is caused by the overwrite and
+/// not a misuse of the API.
 //------------------------------------------------------------------------------
 TEST(TestIOCrash, OverwriteBufferAsciiTest) {
   static constexpr int bufferSize{4};
