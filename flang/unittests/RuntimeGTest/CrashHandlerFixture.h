@@ -10,8 +10,8 @@
 /// with expected message.
 //
 //===----------------------------------------------------------------------===//
-#ifndef FORTRAN_CRASH_HANDLER_FIXTURE_H_
-#define FORTRAN_CRASH_HANDLER_FIXTURE_H_
+#ifndef LLVM_FLANG_UNITTESTS_RUNTIMEGTEST_CRASHHANDLERFIXTURE_H
+#define LLVM_FLANG_UNITTESTS_RUNTIMEGTEST_CRASHHANDLERFIXTURE_H
 #include <gtest/gtest.h>
 
 struct CrashHandlerFixture : testing::Test {
