@@ -56,7 +56,7 @@ TEST(TestIOCrash, FormatDescriptorWriteMismatchTest) {
   static const char *format{"(A4)"};
   auto *cookie{IONAME(BeginInternalFormattedOutput)(
       buffer, bufferSize, format, std::strlen(format))};
-  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, /*output_value=*/0xfeedface),
+  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, 0xfeedface),
       "Data edit descriptor 'A' may not be used with an INTEGER data item");
 }
 
@@ -66,7 +66,7 @@ TEST(TestIOCrash, InvalidFormatCharacterTest) {
   static const char *format{"(C1)"};
   auto *cookie{IONAME(BeginInternalFormattedOutput)(
       buffer, bufferSize, format, std::strlen(format))};
-  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, /*output_value=*/0xfeedface),
+  ASSERT_DEATH(IONAME(OutputInteger64)(cookie, 0xfeedface),
       "Unknown 'C' edit descriptor in FORMAT");
 }
 
