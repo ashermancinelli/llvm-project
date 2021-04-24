@@ -91,6 +91,16 @@ bool FrontendAction::BeginSourceFile(
     return false;
   }
 
+  if (!ci.parsing().messages().empty() &&
+      (ci.invocation().warnAsErr() ||
+       ci.parsing().messages().AnyFatalError())) {
+    const unsigned diagID = ci.diagnostics().getCustomDiagID(
+        clang::DiagnosticsEngine::Error, "Could not scan %0");
+    ci.diagnostics().Report(diagID) << GetCurrentFileOrBufferName();
+    ci.parsing().messages().Emit(llvm::errs(), ci.allCookedSources());
+    return false;
+  }
+
   return true;
 }
 
