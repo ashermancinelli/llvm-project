@@ -77,27 +77,8 @@ bool PrescanAndParseAction::BeginSourceFileAction(CompilerInstance &c1) {
   // Prescan. In case of failure, report and return.
   ci.parsing().Prescan(currentInputPath, parserOptions);
 
-  if (ci.parsing().messages().AnyFatalError()) {
-    const unsigned diagID = ci.diagnostics().getCustomDiagID(
-        clang::DiagnosticsEngine::Error, "Could not scan %0");
-    ci.diagnostics().Report(diagID) << GetCurrentFileOrBufferName();
-    ci.parsing().messages().Emit(llvm::errs(), ci.allCookedSources());
-
-    return false;
-  }
-
   // Parse. In case of failure, report and return.
   ci.parsing().Parse(llvm::outs());
-
-  if (ci.parsing().messages().AnyFatalError()) {
-    unsigned diagID = ci.diagnostics().getCustomDiagID(
-        clang::DiagnosticsEngine::Error, "Could not parse %0");
-    ci.diagnostics().Report(diagID) << GetCurrentFileOrBufferName();
-
-    ci.parsing().messages().Emit(
-        llvm::errs(), this->instance().allCookedSources());
-    return false;
-  }
 
   // Report the diagnostics from parsing
   ci.parsing().messages().Emit(llvm::errs(), ci.allCookedSources());

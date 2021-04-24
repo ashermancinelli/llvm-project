@@ -93,7 +93,7 @@ bool FrontendAction::BeginSourceFile(
 
   if (!ci.parsing().messages().empty() &&
       (ci.invocation().warnAsErr() ||
-       ci.parsing().messages().AnyFatalError())) {
+          ci.parsing().messages().AnyFatalError())) {
     const unsigned diagID = ci.diagnostics().getCustomDiagID(
         clang::DiagnosticsEngine::Error, "Could not scan %0");
     ci.diagnostics().Report(diagID) << GetCurrentFileOrBufferName();
