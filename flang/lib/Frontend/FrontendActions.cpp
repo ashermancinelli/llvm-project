@@ -46,7 +46,8 @@ bool reportFatalSemanticErrors(const Fortran::semantics::Semantics &semantics,
 }
 
 template <unsigned N>
-static bool reportFatalErrors(const FrontendAction *act, const char (&message)[N]) {
+static bool reportFatalErrors(
+    const FrontendAction *act, const char (&message)[N]) {
   CompilerInstance &ci = act->instance();
   if (!ci.parsing().messages().empty() &&
       (ci.invocation().warnAsErr() ||
@@ -129,7 +130,6 @@ bool PrescanAndSemaAction::BeginSourceFileAction(CompilerInstance &c1) {
   // Parse. In case of failure, report and return.
   ci.parsing().Parse(llvm::outs());
 
-  /// this is the problem
   if (reportFatalParsingErrors(this))
     return false;
 
