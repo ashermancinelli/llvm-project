@@ -71,7 +71,7 @@ inline int ValueFor(int at) { return (at ^ (at >> 8)) & 0xff; }
 
 struct BufferTests : CrashHandlerFixture {};
 
-TEST(BufferTests, temp) {
+TEST(BufferTests, TestFrameBufferReadAndWrite) {
   Terminator terminator{__FILE__, __LINE__};
   IoErrorHandler handler{terminator};
   Store store;
