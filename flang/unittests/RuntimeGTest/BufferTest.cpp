@@ -62,8 +62,8 @@ private:
 inline int ChunkSize(int j, int most) {
   // 31, 1, 29, 3, 27, ...
   j %= tinyBufferSize;
-  auto chunk{
-      static_cast<int>(((j % 2) ? j : (tinyBufferSize - 1 - j)) % tinyBufferSize)};
+  auto chunk{static_cast<int>(
+      ((j % 2) ? j : (tinyBufferSize - 1 - j)) % tinyBufferSize)};
   return std::min(chunk, most);
 }
 
