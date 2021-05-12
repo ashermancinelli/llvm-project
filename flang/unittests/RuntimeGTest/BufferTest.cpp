@@ -1,16 +1,17 @@
 #include "../../runtime/buffer.h"
-#include "testing.h"
+#include "CrashHandlerFixture.h"
+#include "gtest/gtest.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <memory>
 
-static constexpr std::size_t tinyBuffer{32};
+static constexpr std::size_t tinyBufferSize{32};
 using FileOffset = std::int64_t;
 using namespace Fortran::runtime;
 using namespace Fortran::runtime::io;
 
-class Store : public FileFrame<Store, tinyBuffer> {
+class Store : public FileFrame<Store, tinyBufferSize> {
 public:
   explicit Store(std::size_t bytes = 65536) : bytes_{bytes} {
     data_.reset(new char[bytes]);
@@ -60,16 +61,17 @@ private:
 
 inline int ChunkSize(int j, int most) {
   // 31, 1, 29, 3, 27, ...
-  j %= tinyBuffer;
+  j %= tinyBufferSize;
   auto chunk{
-      static_cast<int>(((j % 2) ? j : (tinyBuffer - 1 - j)) % tinyBuffer)};
+      static_cast<int>(((j % 2) ? j : (tinyBufferSize - 1 - j)) % tinyBufferSize)};
   return std::min(chunk, most);
 }
 
 inline int ValueFor(int at) { return (at ^ (at >> 8)) & 0xff; }
 
-int main() {
-  StartTests();
+struct BufferTests : CrashHandlerFixture {};
+
+TEST(BufferTests, temp) {
   Terminator terminator{__FILE__, __LINE__};
   IoErrorHandler handler{terminator};
   Store store;
@@ -94,22 +96,19 @@ int main() {
   while (at < bytes) {
     auto chunk{ChunkSize(j, static_cast<int>(bytes - at))};
     std::size_t frame{store.ReadFrame(at, chunk, handler)};
-    if (frame < static_cast<std::size_t>(chunk)) {
-      Fail() << "Badly-sized ReadFrame at " << at << ", chunk=" << chunk
-             << ", got " << frame << '\n';
-      break;
-    }
+    ASSERT_GE(frame, static_cast<std::size_t>(chunk))
+        << "Badly-sized ReadFrame at " << at << ", chunk=" << chunk << ", got "
+        << frame << '\n';
+
     const char *from{store.Frame()};
     for (int k{0}; k < chunk; ++k) {
       auto expect{static_cast<char>(ValueFor(at + k))};
-      if (from[k] != expect) {
-        Fail() << "At " << at << '+' << k << '(' << (at + k) << "), read "
-               << (from[k] & 0xff) << ", expected " << static_cast<int>(expect)
-               << '\n';
-      }
+      ASSERT_EQ(from[k], expect)
+          << "At " << at << '+' << k << '(' << (at + k) << "), read "
+          << (from[k] & 0xff) << ", expected " << static_cast<int>(expect)
+          << '\n';
     }
     at += chunk;
     ++j;
   }
-  return EndTests();
 }
