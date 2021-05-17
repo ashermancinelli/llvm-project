@@ -106,7 +106,7 @@ bool PrescanAndParseAction::BeginSourceFileAction(CompilerInstance &c1) {
   // Parse. In case of failure, report and return.
   ci.parsing().Parse(llvm::outs());
 
-  if (reportFatalScanningErrors(this))
+  if (reportFatalParsingErrors(this))
     return false;
 
   // Report the diagnostics from parsing
