@@ -2,6 +2,7 @@ add_flang_unittest(FlangRuntimeTests
   BufferTest.cpp
   CharacterTest.cpp
   CrashHandlerFixture.cpp
+  ExternalIOTest.cpp
   Format.cpp
   ListInputTest.cpp
   Matmul.cpp
