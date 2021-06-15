@@ -9,62 +9,6 @@
 
 using namespace Fortran::runtime::io;
 
-void TestDirectUnformatted() {
-  llvm::errs() << "begin TestDirectUnformatted()\n";
-  // OPEN(NEWUNIT=unit,ACCESS='DIRECT',ACTION='READWRITE',&
-  //   FORM='UNFORMATTED',RECL=8,STATUS='SCRATCH')
-  auto io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
-  IONAME(SetAccess)(io, "DIRECT", 6) || (Fail() << "SetAccess(DIRECT)", 0);
-  IONAME(SetAction)
-  (io, "READWRITE", 9) || (Fail() << "SetAction(READWRITE)", 0);
-  IONAME(SetForm)
-  (io, "UNFORMATTED", 11) || (Fail() << "SetForm(UNFORMATTED)", 0);
-  std::int64_t buffer;
-  static constexpr std::size_t recl{sizeof buffer};
-  IONAME(SetRecl)(io, recl) || (Fail() << "SetRecl()", 0);
-  IONAME(SetStatus)(io, "SCRATCH", 7) || (Fail() << "SetStatus(SCRATCH)", 0);
-  int unit{-1};
-  IONAME(GetNewUnit)(io, unit) || (Fail() << "GetNewUnit()", 0);
-  llvm::errs() << "unit=" << unit << '\n';
-  IONAME(EndIoStatement)
-  (io) == IostatOk || (Fail() << "EndIoStatement() for OpenNewUnit", 0);
-  static constexpr int records{10};
-  for (int j{1}; j <= records; ++j) {
-    // WRITE(UNIT=unit,REC=j) j
-    io = IONAME(BeginUnformattedOutput)(unit, __FILE__, __LINE__);
-    IONAME(SetRec)(io, j) || (Fail() << "SetRec(" << j << ')', 0);
-    buffer = j;
-    IONAME(OutputUnformattedBlock)
-    (io, reinterpret_cast<const char *>(&buffer), recl, recl) ||
-        (Fail() << "OutputUnformattedBlock()", 0);
-    IONAME(EndIoStatement)
-    (io) == IostatOk ||
-        (Fail() << "EndIoStatement() for OutputUnformattedBlock", 0);
-  }
-  for (int j{records}; j >= 1; --j) {
-    // READ(UNIT=unit,REC=j) n
-    io = IONAME(BeginUnformattedInput)(unit, __FILE__, __LINE__);
-    IONAME(SetRec)
-    (io, j) || (Fail() << "SetRec(" << j << ')', 0);
-    IONAME(InputUnformattedBlock)
-    (io, reinterpret_cast<char *>(&buffer), recl, recl) ||
-        (Fail() << "InputUnformattedBlock()", 0);
-    IONAME(EndIoStatement)
-    (io) == IostatOk ||
-        (Fail() << "EndIoStatement() for InputUnformattedBlock", 0);
-    if (buffer != j) {
-      Fail() << "Read back " << buffer << " from direct unformatted record "
-             << j << ", expected " << j << '\n';
-    }
-  }
-  // CLOSE(UNIT=unit,STATUS='DELETE')
-  io = IONAME(BeginClose)(unit, __FILE__, __LINE__);
-  IONAME(SetStatus)(io, "DELETE", 6) || (Fail() << "SetStatus(DELETE)", 0);
-  IONAME(EndIoStatement)
-  (io) == IostatOk || (Fail() << "EndIoStatement() for Close", 0);
-  llvm::errs() << "end TestDirectUnformatted()\n";
-}
-
 void TestDirectUnformattedSwapped() {
   llvm::errs() << "begin TestDirectUnformattedSwapped()\n";
   // OPEN(NEWUNIT=unit,ACCESS='DIRECT',ACTION='READWRITE',&
