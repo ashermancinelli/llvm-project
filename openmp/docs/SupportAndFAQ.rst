@@ -224,15 +224,15 @@ might look like this:
 
 .. code-block:: console
 
-   export gcc_toolchain_install_dir=/some/path
-   export CCC_OVERRIDE_OPTIONS=^--gcc-toolchain=$gcc_toolchain_install_dir
+   $ export gcc_toolchain_install_dir=/some/path
+   $ export CCC_OVERRIDE_OPTIONS=^--gcc-toolchain=$gcc_toolchain_install_dir
 
-   cmake $llvm_project_source_dir/llvm \
-     -DLLVM_ENABLE_PROJECTS='clang;compiler-rt' \
-     -DLLVM_ENABLE_RUNTIMES=openmp \
-     -DCMAKE_INSTALL_PREFIX=$install_dir \
-     -DCMAKE_C_COMPILER=$gcc_toolchain_install_dir/bin/gcc \
-     -DCMAKE_CXX_COMPILER=$gcc_toolchain_install_dir/bin/g++
+   $ cmake $llvm_project_source_dir/llvm \
+       -DLLVM_ENABLE_PROJECTS='clang;compiler-rt' \
+       -DLLVM_ENABLE_RUNTIMES=openmp \
+       -DCMAKE_INSTALL_PREFIX=$install_dir \
+       -DCMAKE_C_COMPILER=$gcc_toolchain_install_dir/bin/gcc \
+       -DCMAKE_CXX_COMPILER=$gcc_toolchain_install_dir/bin/g++
 
 The `CCC_OVERRIDE_OPTIONS` environment variable injects the GCC toolchain path
 into the clang invokations in the second stage of the build.
