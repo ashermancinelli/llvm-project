@@ -56,6 +56,9 @@ option, `LLVM_ENABLE_RUNTIMES="openmp"`, is needed when building LLVM (Generic
 information about building LLVM is available `here <https://llvm.org/docs/GettingStarted.html>`__.).
 Make sure all backends that are targeted by OpenMP to be enabled. By default,
 Clang will be built with all backends enabled.
+Also ensure that the OpenMP LLVM project is *disabled* (eg don't add openmp
+to the `LLVM_ENABLE_PROJECTS` cmake variable) since enabling the OpenMP
+runtime will build the project anyways.
 
 For Nvidia offload, please see :ref:`_build_nvidia_offload_capable_compiler`.
 For AMDGPU offload, please see :ref:`_build_amdgpu_offload_capable_compiler`.
@@ -206,3 +209,34 @@ Q: Can I use dynamically linked libraries with OpenMP offloading
 Dynamically linked libraries can be only used if there is no device code split
 between the library and application. Anything declared on the device inside the
 shared library will not be visible to the application when it's linked.
+
+Q: How to build an OpenMP offload capable compiler with an outdated host compiler?
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Enabling the OpenMP runtime will perfor a two-stage build for you.
+If your host compiler is different from your system-wide compiler, you may need
+to set some environment variables such that clang will be able to find the
+correct GCC toolchain in the second stage of the build.
+
+For example, if your system-wide GCC installation is too old to build LLVM and
+you would like to use an external GCC 9.1.0 build, your cmake invokation
+might look like this:
+
+.. code-block:: console
+
+   export gcc_toolchain_install_dir=/some/path
+   export CCC_OVERRIDE_OPTIONS=^--gcc-toolchain=$gcc_toolchain_install_dir
+
+   cmake $llvm_project_source_dir/llvm \
+     -DLLVM_ENABLE_PROJECTS='clang;compiler-rt' \
+     -DLLVM_ENABLE_RUNTIMES=openmp \
+     -DCMAKE_INSTALL_PREFIX=$install_dir \
+     -DCMAKE_C_COMPILER=$gcc_toolchain_install_dir/bin/gcc \
+     -DCMAKE_CXX_COMPILER=$gcc_toolchain_install_dir/bin/g++
+
+The `CCC_OVERRIDE_OPTIONS` environment variable injects the GCC toolchain path
+into the clang invokations in the second stage of the build.
+This issue may manifest itself in compilation errors with the C++ standard being used (eg
+`error: no template named 'enable_if_t' in namespace 'std';`) when you know your
+host compiler is new enough to build LLVM.
+
