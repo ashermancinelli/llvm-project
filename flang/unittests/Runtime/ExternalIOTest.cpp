@@ -5,6 +5,10 @@
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
+//
+// Sanity test for all external I/O modes
+//
+//===----------------------------------------------------------------------===//
 
 #include "CrashHandlerFixture.h"
 #include "gtest/gtest.h"
@@ -76,7 +80,7 @@ TEST(ExternalIOTests, TestDirectUnformatted) {
 TEST(ExternalIOTests, TestDirectUnformattedSwapped) {
   // OPEN(NEWUNIT=unit,ACCESS='DIRECT',ACTION='READWRITE',&
   //   FORM='UNFORMATTED',RECL=8,STATUS='SCRATCH',CONVERT='NATIVE')
-  auto io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
+  auto *io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
   ASSERT_TRUE(IONAME(SetAccess)(io, "DIRECT", 6)) << "SetAccess(DIRECT)";
   ASSERT_TRUE(IONAME(SetAction)(io, "READWRITE", 9)) << "SetAction(READWRITE)";
   ASSERT_TRUE(IONAME(SetForm)(io, "UNFORMATTED", 11)) << "SetForm(UNFORMATTED)";
@@ -136,7 +140,7 @@ TEST(ExternalIOTests, TestDirectUnformattedSwapped) {
 TEST(ExternalIOTests, TestSequentialFixedUnformatted) {
   // OPEN(NEWUNIT=unit,ACCESS='SEQUENTIAL',ACTION='READWRITE',&
   //   FORM='UNFORMATTED',RECL=8,STATUS='SCRATCH')
-  auto io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
+  auto * io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
   ASSERT_TRUE(IONAME(SetAccess)(io, "SEQUENTIAL", 10))
       << "SetAccess(SEQUENTIAL)";
   ASSERT_TRUE(IONAME(SetAction)(io, "READWRITE", 9)) << "SetAction(READWRITE)";
@@ -214,7 +218,7 @@ TEST(ExternalIOTests, TestSequentialFixedUnformatted) {
 TEST(ExternalIOTests, TestSequentialVariableUnformatted) {
   // OPEN(NEWUNIT=unit,ACCESS='SEQUENTIAL',ACTION='READWRITE',&
   //   FORM='UNFORMATTED',STATUS='SCRATCH')
-  auto io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
+  auto *io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
 
   ASSERT_TRUE(IONAME(SetAccess)(io, "SEQUENTIAL", 10))
       << "SetAccess(SEQUENTIAL)";
@@ -296,7 +300,7 @@ TEST(ExternalIOTests, TestSequentialVariableUnformatted) {
 TEST(ExternalIOTests, TestDirectFormatted) {
   // OPEN(NEWUNIT=unit,ACCESS='DIRECT',ACTION='READWRITE',&
   //   FORM='FORMATTED',RECL=8,STATUS='SCRATCH')
-  auto io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
+  auto *io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
   ASSERT_TRUE(IONAME(SetAccess)(io, "DIRECT", 6)) << "SetAccess(DIRECT)";
   ASSERT_TRUE(IONAME(SetAction)(io, "READWRITE", 9)) << "SetAction(READWRITE)";
   ASSERT_TRUE(IONAME(SetForm)(io, "FORMATTED", 9)) << "SetForm(FORMATTED)";
@@ -347,7 +351,7 @@ TEST(ExternalIOTests, TestDirectFormatted) {
 TEST(ExternalIOTests, TestSequentialVariableFormatted) {
   // OPEN(NEWUNIT=unit,ACCESS='SEQUENTIAL',ACTION='READWRITE',&
   //   FORM='FORMATTED',STATUS='SCRATCH')
-  auto io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
+  auto *io{IONAME(BeginOpenNewUnit)(__FILE__, __LINE__)};
   ASSERT_TRUE(IONAME(SetAccess)(io, "SEQUENTIAL", 10))
       << "SetAccess(SEQUENTIAL)";
   ASSERT_TRUE(IONAME(SetAction)(io, "READWRITE", 9)) << "SetAction(READWRITE)";
