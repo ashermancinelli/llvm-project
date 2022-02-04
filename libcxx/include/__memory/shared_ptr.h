@@ -652,7 +652,8 @@ public:
 
     template <class _Yp, class _Dp, class = __enable_if_t<
         !is_lvalue_reference<_Dp>::value &&
-         is_convertible<typename unique_ptr<_Yp, _Dp>::pointer, element_type*>::value
+         is_convertible<typename unique_ptr<_Yp, _Dp>::pointer, element_type*>::value &&
+         is_move_constructible<_Dp>::value
     > >
     _LIBCPP_HIDE_FROM_ABI
     shared_ptr(unique_ptr<_Yp, _Dp>&& __r)
@@ -666,7 +667,7 @@ public:
         {
             typedef typename __shared_ptr_default_allocator<_Yp>::type _AllocT;
             typedef __shared_ptr_pointer<typename unique_ptr<_Yp, _Dp>::pointer, _Dp, _AllocT > _CntrlBlk;
-            __cntrl_ = new _CntrlBlk(__r.get(), __r.get_deleter(), _AllocT());
+            __cntrl_ = new _CntrlBlk(__r.get(), std::move(__r.get_deleter()), _AllocT());
             __enable_weak_this(__r.get(), __r.get());
         }
         __r.release();

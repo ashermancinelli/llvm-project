@@ -82,6 +82,14 @@ struct StatefulArrayDeleter {
   }
 };
 
+template <class T>
+struct MoveOnlyDeleter {
+  MoveOnlyDeleter() {}
+  MoveOnlyDeleter(MoveOnlyDeleter&&) {}
+  MoveOnlyDeleter(MoveOnlyDeleter&) = delete;
+  void operator()(T* p) const { delete p; }
+};
+
 int main(int, char**)
 {
     {
@@ -218,6 +226,11 @@ int main(int, char**)
       std::shared_ptr<int[]> p(std::move(ptr));
     }
 #endif // TEST_STD_VER >= 14
+
+    { // LWG 3548
+      std::unique_ptr<int, MoveOnlyDeleter<int> > u;
+      std::shared_ptr<int> s(std::move(u));
+    }
 
     return 0;
 }
