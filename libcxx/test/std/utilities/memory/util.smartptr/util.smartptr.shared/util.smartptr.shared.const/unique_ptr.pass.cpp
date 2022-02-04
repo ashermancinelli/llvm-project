@@ -82,6 +82,15 @@ struct StatefulArrayDeleter {
   }
 };
 
+struct MovingDeleter {
+  explicit MovingDeleter(int *moves) : moves_(moves) {}
+  MovingDeleter(MovingDeleter&& rhs) : moves_(rhs.moves_) { *moves_ += 1; }
+  MovingDeleter(const MovingDeleter&);
+  MovingDeleter& operator=(const MovingDeleter&);
+  void operator()(int*) const {}
+  int *moves_;
+};
+
 int main(int, char**)
 {
     {
@@ -218,10 +227,42 @@ int main(int, char**)
     assert(A::count == 0);
 
     {
-      std::unique_ptr<int[]> ptr(new int[8]);
-      std::shared_ptr<int[]> p(std::move(ptr));
+      int *p = new int[8];
+      std::unique_ptr<int[]> u(p);
+      std::shared_ptr<int[]> s(std::move(u));
+      assert(u == nullptr);
+      assert(s.get() == p);
     }
-#endif // TEST_STD_VER >= 14
+#endif // TEST_STD_VER > 14
+
+    { // LWG 3548
+#if TEST_STD_VER > 3
+      {
+        int moves = 0;
+        int i = 42;
+        std::unique_ptr<int, MovingDeleter> u(&i, MovingDeleter(&moves));
+        assert(moves == 1);
+        std::shared_ptr<int> s(std::move(u));
+        assert(moves >= 2);
+        assert(u == nullptr);
+        assert(s.get() == &i);
+      }
+#endif
+
+#if TEST_STD_VER > 11
+      {
+        int moves = 0;
+        int *p = new int[8];
+        std::unique_ptr<int[], MovingDeleter> u(p, MovingDeleter(&moves));
+        assert(moves == 1);
+        std::shared_ptr<int[]> s(std::move(u));
+        assert(moves >= 2);
+        assert(u == nullptr);
+        assert(s.get() == p);
+        delete []p;
+      }
+#endif // TEST_STD_VER > 11
+    }
 
     return 0;
 }
