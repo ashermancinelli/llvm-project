@@ -256,7 +256,7 @@ int main(int, char**)
         assert(u == nullptr);
         assert(s.get() == a);
       }
-#endif // TEST_STD_VER > 11
+#endif // TEST_STD_VER > 14
     }
 
     return 0;
