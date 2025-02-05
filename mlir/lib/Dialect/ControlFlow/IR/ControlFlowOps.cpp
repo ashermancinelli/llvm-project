@@ -12,6 +12,8 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/BufferDeallocationOpInterface.h"
 #include "mlir/Dialect/Bufferization/IR/BufferizableOpInterface.h"
+#include "mlir/Dialect/LLVMIR/LLVMAttrs.h"
+#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/AffineExpr.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
@@ -265,9 +267,20 @@ struct SimplifyPassThroughCondBranch : public OpRewritePattern<CondBranchOp> {
       return failure();
 
     // Create a new branch with the collapsed successors.
-    rewriter.replaceOpWithNewOp<CondBranchOp>(condbr, condbr.getCondition(),
-                                              trueDest, trueDestOperands,
-                                              falseDest, falseDestOperands);
+    auto newCondbr = rewriter.replaceOpWithNewOp<CondBranchOp>(
+        condbr, condbr.getCondition(), trueDest, trueDestOperands, falseDest,
+        falseDestOperands);
+
+    // Ensure loop metadata is copied into the new op
+    rewriter.modifyOpInPlace(newCondbr, [&]() {
+      SmallVector<NamedAttribute> llvmAttrs;
+      llvm::copy_if(
+          condbr->getAttrs(), std::back_inserter(llvmAttrs), [](auto attr) {
+            return isa<mlir::LLVM::LLVMDialect>(attr.getValue().getDialect());
+          });
+      newCondbr->setDiscardableAttrs(llvmAttrs);
+    });
+
     return success();
   }
 };

@@ -118,6 +118,31 @@ func.func @cond_br_passthrough(%arg0 : i32, %arg1 : i32, %arg2 : i32, %cond : i1
   return %arg4, %arg5 : i32, i32
 }
 
+/// Test that pass-through simplification does not lose metadata
+#loop_unroll = #llvm.loop_unroll<disable = false, full = true>
+#loop_annotation = #llvm.loop_annotation<unroll = #loop_unroll>
+func.func @cond_br_preserve_loop_md(%arg0 : i32, %arg1 : i32, %arg2 : i32, %cond : i1) {
+  // CHECK-LABEL: @cond_br_preserve_loop_md(
+  // CHECK: cf.cond_br
+  // CHECK-SAME: loop_annotation = #loop_annotation
+  cf.cond_br %cond, ^bb1, ^bb2 {loop_annotation = #loop_annotation}
+
+  // CHECK-NEXT: ^bb1:
+  // CHECK-NEXT: foo.op
+  // CHECK-NEXT: cf.br
+  // CHECK-NEXT: ^bb2:
+  // CHECK-NEXT: return
+^bb1:
+  cf.br ^bb3
+
+^bb2:
+  "foo.op"() : () -> ()
+  cf.br ^bb3
+
+^bb3:
+  return
+}
+
 /// Test the failure modes of collapsing CondBranchOp pass-throughs successors.
 
 // CHECK-LABEL: func @cond_br_pass_through_fail(
