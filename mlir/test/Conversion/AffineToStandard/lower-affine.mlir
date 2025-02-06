@@ -927,3 +927,16 @@ func.func @affine_parallel_with_reductions_i64(%arg0: memref<3x3xi64>, %arg1: me
 // CHECK:      scf.reduce.return %[[RES]] : i64
 // CHECK:    }
 // CHECK:  }
+
+#loop_vectorize = #llvm.loop_vectorize<disable = false>
+#loop_annotation = #llvm.loop_annotation<vectorize = #loop_vectorize>
+func.func @affine_for_with_annotations(%ub : index) {
+  affine.for %i = 1 to %ub {
+    func.call @body(%i) : (index) -> ()
+  } {loop_annotation = #loop_annotation}
+  return
+}
+// CHECK-LABEL: @affine_for_with_annotations
+// CHECK: scf.for {{.*}} {
+// CHECK: } {loop_annotation = #loop_annotation}
+// CHECK: return
