@@ -1,19 +1,13 @@
 C_SOURCES := main.c
 LD_EXTRAS = -Wl,-rpath "-Wl,$(shell pwd)" -L. -lno-nlists -lhas-nlists
 
-.PHONY: build-libno-nlists build-libhas-nlists
-all: build-libno-nlists build-libhas-nlists a.out
-
 include Makefile.rules
 
-build-libno-nlists: no-nlists.c no-nlist-sect.s
-	$(CC) $(CFLAGS) -c -o no-nlists.o $(<D)/no-nlists.c
-	$(CC) $(CFLAGS) -c -o no-nlist-sect.o $(<D)/no-nlist-sect.s
-	$(LD) $(LDFLAGS) -dynamiclib -o libno-nlists.dylib no-nlists.o no-nlist-sect.o -install_name "@executable_path/libno-nlists.dylib"
+a.out: dylib_HasNlists dylib_NoNlists
 
-build-libhas-nlists: has-nlists.c
-	$(CC) $(CFLAGS) -c -o has-nlists.o $(<D)/has-nlists.c
-	$(LD) $(LDFLAGS) -dynamiclib -o libhas-nlists.dylib has-nlists.o  -install_name "@executable_path/libhas-nlists.dylib"
+dylib_HasNlists:
+	"$(MAKE)" -f $(MAKEFILE_RULES) \
+	DYLIB_ONLY=YES DYLIB_NAME=has-nlists DYLIB_C_SOURCES=has-nlists.c
 
-clean::
-	rm -rf *.o *.dylib a.out *.dSYM
+dylib_NoNlists:
+	"$(MAKE)" VPATH=$(SRCDIR) -I $(SRCDIR) -f $(SRCDIR)/NoNlists.mk

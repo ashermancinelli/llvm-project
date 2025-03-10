@@ -3168,13 +3168,6 @@ public:
 
   DeclGroupPtrTy ConvertDeclToDeclGroup(Decl *Ptr, Decl *OwnedType = nullptr);
 
-  enum class DiagCtorKind { None, Implicit, Typename };
-  /// Returns the TypeDeclType for the given type declaration,
-  /// as ASTContext::getTypeDeclType would, but
-  /// performs the required semantic checks for name lookup of said entity.
-  QualType getTypeDeclType(DeclContext *LookupCtx, DiagCtorKind DCK,
-                           TypeDecl *TD, SourceLocation NameLoc);
-
   /// If the identifier refers to a type name within this scope,
   /// return the declaration of that type.
   ///
@@ -4008,7 +4001,7 @@ public:
   /// Perform ODR-like check for C/ObjC when merging tag types from modules.
   /// Differently from C++, actually parse the body and reject / error out
   /// in case of a structural mismatch.
-  bool ActOnDuplicateDefinition(Decl *Prev, SkipBodyInfo &SkipBody);
+  bool ActOnDuplicateDefinition(Scope *S, Decl *Prev, SkipBodyInfo &SkipBody);
 
   typedef void *SkippedDefinitionContext;
 
@@ -4131,6 +4124,12 @@ public:
   /// diagnostics as appropriate. If there was an error, set New to be invalid.
   void MergeTypedefNameDecl(Scope *S, TypedefNameDecl *New,
                             LookupResult &OldDecls);
+
+  /// CleanupMergedEnum - We have just merged the decl 'New' by making another
+  /// definition visible.
+  /// This method performs any necessary cleanup on the parser state to discard
+  /// child nodes from newly parsed decl we are retiring.
+  void CleanupMergedEnum(Scope *S, Decl *New);
 
   /// MergeFunctionDecl - We just parsed a function 'New' from
   /// declarator D which has the same name and scope as a previous
@@ -11357,14 +11356,16 @@ public:
 
   /// The context in which we are checking a template parameter list.
   enum TemplateParamListContext {
-    TPC_ClassTemplate,
-    TPC_VarTemplate,
+    // For this context, Class, Variable, TypeAlias, and non-pack Template
+    // Template Parameters are treated uniformly.
+    TPC_Other,
+
     TPC_FunctionTemplate,
     TPC_ClassTemplateMember,
     TPC_FriendClassTemplate,
     TPC_FriendFunctionTemplate,
     TPC_FriendFunctionTemplateDefinition,
-    TPC_TypeAliasTemplate
+    TPC_TemplateTemplateParameterPack,
   };
 
   /// Checks the validity of a template parameter list, possibly
@@ -11827,7 +11828,7 @@ public:
                                  bool *ConstraintsNotSatisfied = nullptr);
 
   bool CheckTemplateTypeArgument(
-      TemplateArgumentLoc &Arg,
+      TemplateTypeParmDecl *Param, TemplateArgumentLoc &Arg,
       SmallVectorImpl<TemplateArgument> &SugaredConverted,
       SmallVectorImpl<TemplateArgument> &CanonicalConverted);
 
@@ -11863,13 +11864,9 @@ public:
                                      bool PartialOrdering,
                                      bool *StrictPackMatch);
 
-  /// Print the given named declaration to a string,
-  /// using the current PrintingPolicy, except that
-  /// TerseOutput will always be set.
-  SmallString<128> toTerseString(const NamedDecl &D) const;
-
   void NoteTemplateLocation(const NamedDecl &Decl,
                             std::optional<SourceRange> ParamRange = {});
+  void NoteTemplateParameterLocation(const NamedDecl &Decl);
 
   /// Given a non-type template argument that refers to a
   /// declaration and the type of its corresponding non-type template
@@ -11984,13 +11981,15 @@ public:
   bool TemplateParameterListsAreEqual(
       const TemplateCompareNewDeclInfo &NewInstFrom, TemplateParameterList *New,
       const NamedDecl *OldInstFrom, TemplateParameterList *Old, bool Complain,
-      TemplateParameterListEqualKind Kind);
+      TemplateParameterListEqualKind Kind,
+      SourceLocation TemplateArgLoc = SourceLocation());
 
-  bool TemplateParameterListsAreEqual(TemplateParameterList *New,
-                                      TemplateParameterList *Old, bool Complain,
-                                      TemplateParameterListEqualKind Kind) {
+  bool TemplateParameterListsAreEqual(
+      TemplateParameterList *New, TemplateParameterList *Old, bool Complain,
+      TemplateParameterListEqualKind Kind,
+      SourceLocation TemplateArgLoc = SourceLocation()) {
     return TemplateParameterListsAreEqual(nullptr, New, nullptr, Old, Complain,
-                                          Kind);
+                                          Kind, TemplateArgLoc);
   }
 
   /// Check whether a template can be declared within this scope.
@@ -12870,11 +12869,6 @@ public:
 
       /// We are performing partial ordering for template template parameters.
       PartialOrderingTTP,
-
-      /// We are Checking a Template Parameter, so for any diagnostics which
-      /// occur in this scope, we will add a context note which points to this
-      /// template parameter.
-      CheckTemplateParameter,
     } Kind;
 
     /// Was the enclosing context a non-instantiation SFINAE context?
@@ -13102,11 +13096,6 @@ public:
                           PartialOrderingTTP, TemplateDecl *PArg,
                           SourceRange InstantiationRange = SourceRange());
 
-    struct CheckTemplateParameter {};
-    /// \brief Note that we are checking a template parameter.
-    InstantiatingTemplate(Sema &SemaRef, CheckTemplateParameter,
-                          NamedDecl *Param);
-
     /// Note that we have finished instantiating this template.
     void Clear();
 
@@ -13138,13 +13127,6 @@ public:
     InstantiatingTemplate(const InstantiatingTemplate &) = delete;
 
     InstantiatingTemplate &operator=(const InstantiatingTemplate &) = delete;
-  };
-
-  /// For any diagnostics which occur within its scope, adds a context note
-  /// pointing to the declaration of the template parameter.
-  struct CheckTemplateParameterRAII : InstantiatingTemplate {
-    CheckTemplateParameterRAII(Sema &S, NamedDecl *Param)
-        : InstantiatingTemplate(S, CheckTemplateParameter(), Param) {}
   };
 
   bool SubstTemplateArgument(const TemplateArgumentLoc &Input,
