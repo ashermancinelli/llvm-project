@@ -23,7 +23,6 @@
 #include "mlir/IR/IRMapping.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/PatternMatch.h"
-#include "mlir/Interfaces/LoopMetadataInterface.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "mlir/Transforms/Passes.h"
 
@@ -376,19 +375,14 @@ LogicalResult ForLowering::matchAndRewrite(ForOp forOp,
       loc, comparison, firstBodyBlock, ArrayRef<Value>(), endBlock,
       ArrayRef<Value>());
 
-  // Transfer loop metadata attributes to the condition branch operation
-  if (auto metadataInterface = dyn_cast<LoopMetadataInterface>(forOp.getOperation())) {
-    condBranchOp->setDiscardableAttrs(metadataInterface.getLoopMetadata());
-  } else {
-    // Legacy fallback in case the interface isn't implemented
-    SmallVector<NamedAttribute> llvmAttrs;
-    llvm::copy_if(forOp->getAttrs(), std::back_inserter(llvmAttrs),
-                  [](auto attr) {
-                    return isa<LLVM::LLVMDialect>(attr.getValue().getDialect());
-                  });
-    condBranchOp->setDiscardableAttrs(llvmAttrs);
-  }
-  
+  // Let the CondBranchOp carry the LLVM attributes from the ForOp, such as the
+  // llvm.loop_annotation attribute.
+  SmallVector<NamedAttribute> llvmAttrs;
+  llvm::copy_if(forOp->getAttrs(), std::back_inserter(llvmAttrs),
+                [](auto attr) {
+                  return isa<LLVM::LLVMDialect>(attr.getValue().getDialect());
+                });
+  condBranchOp->setDiscardableAttrs(llvmAttrs);
   // The result of the loop operation is the values of the condition block
   // arguments except the induction variable on the last iteration.
   rewriter.replaceOp(forOp, conditionBlock->getArguments().drop_front());
