@@ -688,6 +688,28 @@ struct CmpcOpConversion : public fir::FIROpConversion<fir::CmpcOp> {
   }
 };
 
+static mlir::LogicalResult
+convertFpToInteger(mlir::ConversionPatternRewriter &rewriter,
+                   fir::ConvertOp opToReplace, mlir::Value op0,
+                   mlir::Type fromTy, mlir::Type toTy, bool isSigned) {
+  auto fromBits = mlir::LLVM::getPrimitiveTypeSizeInBits(fromTy);
+  auto toBits = mlir::LLVM::getPrimitiveTypeSizeInBits(toTy);
+  const bool useSaturatedIntrinsic = fromBits > toBits;
+  if (useSaturatedIntrinsic) {
+    const char* intrinsicStr = isSigned ? "llvm.fptosi.sat" : "llvm.fptoui.sat";
+    auto intrinsicName = mlir::StringAttr::get(opToReplace.getContext(), intrinsicStr);
+    rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
+        opToReplace, toTy, intrinsicName, op0);
+  } else {
+    if (isSigned) {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::FPToSIOp>(opToReplace, toTy, op0);
+    } else {
+      rewriter.replaceOpWithNewOp<mlir::LLVM::FPToUIOp>(opToReplace, toTy, op0);
+    }
+  }
+  return mlir::success();
+}
+
 /// convert value of from-type to value of to-type
 struct ConvertOpConversion : public fir::FIROpConversion<fir::ConvertOp> {
   using FIROpConversion::FIROpConversion;
@@ -838,18 +860,8 @@ struct ConvertOpConversion : public fir::FIROpConversion<fir::ConvertOp> {
         // NOTE: We are checking the fir type here because toTy is an LLVM type
         // which is signless, and we need to use the intrinsic that matches the
         // sign of the output in fir.
-        if (toFirTy.isUnsignedInteger()) {
-          auto intrinsicName =
-              mlir::StringAttr::get(convert.getContext(), "llvm.fptoui.sat");
-          rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
-              convert, toTy, intrinsicName, op0);
-        } else {
-          auto intrinsicName =
-              mlir::StringAttr::get(convert.getContext(), "llvm.fptosi.sat");
-          rewriter.replaceOpWithNewOp<mlir::LLVM::CallIntrinsicOp>(
-              convert, toTy, intrinsicName, op0);
-        }
-        return mlir::success();
+        const bool isSigned = !toFirTy.isUnsignedInteger();
+        return convertFpToInteger(rewriter, convert, op0, fromTy, toTy, isSigned);
       }
     } else if (mlir::isa<mlir::IntegerType>(fromTy)) {
       // Integer to integer conversion.
