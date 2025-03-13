@@ -204,7 +204,7 @@ def LoopUnswitchAttr : LLVM_Attr<"LoopUnswitch", "loop_unswitch"> {
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
-def LoopAnnotationAttr : LLVM_Attr<"LoopAnnotation", "loop_annotation"> {
+def LoopAnnotationAttr : LLVM_Attr<"LoopAnnotation", "loop_annotation", [LLVM_EmptyAttrInterface]> {
   let description = [{
     This attributes encapsulates "loop metadata". It is meant to decorate
     branches that are "latches" (loop backedges) and maps to the `!llvm.loop`

@@ -430,6 +430,13 @@ def LLVM_PointerElementTypeInterface
 // LLVM dialect attr interfaces.
 //===----------------------------------------------------------------------===//
 
+def LLVM_EmptyAttrInterface : AttrInterface<"EmptyAttrInterface"> {
+  let cppNamespace = "::mlir::LLVM";
+  let description = [{
+    An interface for attributes that are empty.
+  }];
+}
+
 def LLVM_DIRecursiveTypeAttrInterface
   : AttrInterface<"DIRecursiveTypeAttrInterface"> {
   let description = [{
