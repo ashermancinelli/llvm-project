@@ -3217,7 +3217,8 @@ struct LoadOpConversion : public fir::FIROpConversion<fir::LoadOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
 
     mlir::Type originalLoadTy = load.getMemref().getType();
-    const bool isVolatile = mlir::isa<fir::VolatileReferenceType>(originalLoadTy);
+    const bool isVolatile =
+        mlir::isa<fir::VolatileReferenceType>(originalLoadTy);
     mlir::Type llvmLoadTy = convertObjectType(load.getType());
     if (auto boxTy = mlir::dyn_cast<fir::BaseBoxType>(load.getType())) {
       // fir.box is a special case because it is considered an ssa value in
@@ -3533,7 +3534,8 @@ struct StoreOpConversion : public fir::FIROpConversion<fir::StoreOp> {
     mlir::Location loc = store.getLoc();
     mlir::Type storeTy = store.getValue().getType();
     mlir::Type originalStoreTy = store.getMemref().getType();
-    const bool isVolatile = mlir::isa<fir::VolatileReferenceType>(originalStoreTy);
+    const bool isVolatile =
+        mlir::isa<fir::VolatileReferenceType>(originalStoreTy);
     mlir::Value llvmValue = adaptor.getValue();
     mlir::Value llvmMemref = adaptor.getMemref();
     mlir::LLVM::AliasAnalysisOpInterface newOp;
@@ -3544,10 +3546,11 @@ struct StoreOpConversion : public fir::FIROpConversion<fir::StoreOp> {
       TypePair boxTypePair{boxTy, llvmBoxTy};
       mlir::Value boxSize =
           computeBoxSize(loc, boxTypePair, llvmValue, rewriter);
-      newOp = rewriter.create<mlir::LLVM::MemcpyOp>(
-          loc, llvmMemref, llvmValue, boxSize, isVolatile);
+      newOp = rewriter.create<mlir::LLVM::MemcpyOp>(loc, llvmMemref, llvmValue,
+                                                    boxSize, isVolatile);
     } else {
-      newOp = rewriter.create<mlir::LLVM::StoreOp>(loc, llvmValue, llvmMemref, 0, isVolatile, false);
+      newOp = rewriter.create<mlir::LLVM::StoreOp>(loc, llvmValue, llvmMemref,
+                                                   0, isVolatile, false);
     }
     if (std::optional<mlir::ArrayAttr> optionalTag = store.getTbaa())
       newOp.setTBAATags(*optionalTag);

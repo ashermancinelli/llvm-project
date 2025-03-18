@@ -305,8 +305,8 @@ static mlir::Type wrapAllocMemResultType(mlir::Type intype) {
   // Fortran semantics: C852 an entity cannot be both ALLOCATABLE and POINTER
   // 8.5.3 note 1 prohibits ALLOCATABLE procedures as well
   // FIR semantics: one may not allocate a memory reference value
-  if (mlir::isa<fir::ReferenceType, fir::VolatileReferenceType, fir::HeapType, fir::PointerType,
-                mlir::FunctionType>(intype))
+  if (mlir::isa<fir::ReferenceType, fir::VolatileReferenceType, fir::HeapType,
+                fir::PointerType, mlir::FunctionType>(intype))
     return {};
   return fir::HeapType::get(intype);
 }
@@ -1368,9 +1368,9 @@ bool fir::ConvertOp::isFloatCompatible(mlir::Type ty) {
 
 bool fir::ConvertOp::isPointerCompatible(mlir::Type ty) {
   return mlir::isa<fir::ReferenceType, fir::VolatileReferenceType,
-                   fir::PointerType, fir::HeapType,
-                   fir::LLVMPointerType, mlir::MemRefType, mlir::FunctionType,
-                   fir::TypeDescType, mlir::LLVM::LLVMPointerType>(ty);
+                   fir::PointerType, fir::HeapType, fir::LLVMPointerType,
+                   mlir::MemRefType, mlir::FunctionType, fir::TypeDescType,
+                   mlir::LLVM::LLVMPointerType>(ty);
 }
 
 static std::optional<mlir::Type> getVectorElementType(mlir::Type ty) {

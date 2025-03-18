@@ -198,7 +198,8 @@ mlir::Type hlfir::DeclareOp::getHLFIRVariableType(mlir::Type inputType,
   if (hasExplicitLowerBounds || hasDynamicExtents || hasDynamicLengthParams)
     return fir::BoxType::get(type);
 
-  // If this is a reference type and has the volatile attribute, use VolatileReferenceType
+  // If this is a reference type and has the volatile attribute, use
+  // VolatileReferenceType
   if (isVolatile && mlir::isa<fir::ReferenceType>(inputType)) {
     auto refType = mlir::cast<fir::ReferenceType>(inputType);
     return fir::VolatileReferenceType::get(refType.getEleTy());
@@ -224,7 +225,8 @@ void hlfir::DeclareOp::build(mlir::OpBuilder &builder,
   bool hasExplicitLbs = hasExplicitLowerBounds(shape);
   bool isVolatile = false;
   if (fortran_attrs && mlir::isa<fir::ReferenceType>(inputType) &&
-      bitEnumContainsAny(fortran_attrs.getFlags(), fir::FortranVariableFlagsEnum::fortran_volatile)) {
+      bitEnumContainsAny(fortran_attrs.getFlags(),
+                         fir::FortranVariableFlagsEnum::fortran_volatile)) {
     auto refType = mlir::cast<fir::ReferenceType>(inputType);
     isVolatile = true;
     inputType = fir::VolatileReferenceType::get(refType.getEleTy());
@@ -232,16 +234,18 @@ void hlfir::DeclareOp::build(mlir::OpBuilder &builder,
   }
   mlir::Type hlfirVariableType =
       getHLFIRVariableType(inputType, hasExplicitLbs, isVolatile);
-      
+
   build(builder, result, {hlfirVariableType, inputType}, memref, shape,
         typeparams, dummy_scope, nameAttr, fortran_attrs, data_attr);
 }
 
-static bool hlfirVariableTypeCompatible(mlir::Type memrefType, mlir::Type outputType) {
-  // if the input and output types don't match, they are still compatible ONLY if this is
-  // due to the variable being declared volatile.
+static bool hlfirVariableTypeCompatible(mlir::Type memrefType,
+                                        mlir::Type outputType) {
+  // if the input and output types don't match, they are still compatible ONLY
+  // if this is due to the variable being declared volatile.
   if (auto inputRefTy = mlir::dyn_cast<fir::ReferenceType>(memrefType)) {
-    if (auto hlfirRefTy = mlir::dyn_cast<fir::VolatileReferenceType>(outputType)) {
+    if (auto hlfirRefTy =
+            mlir::dyn_cast<fir::VolatileReferenceType>(outputType)) {
       return hlfirRefTy.getEleTy() == inputRefTy.getEleTy();
     }
   }
@@ -255,7 +259,8 @@ llvm::LogicalResult hlfir::DeclareOp::verify() {
   bool isVolatile = false;
   if (getFortranAttrs().has_value()) {
     auto flagsEnum = getFortranAttrs().value();
-    isVolatile = bitEnumContainsAny(flagsEnum, fir::FortranVariableFlagsEnum::fortran_volatile);
+    isVolatile = bitEnumContainsAny(
+        flagsEnum, fir::FortranVariableFlagsEnum::fortran_volatile);
     attrs = fir::FortranVariableFlagsAttr::get(getContext(), flagsEnum);
   }
   mlir::Type hlfirVariableType = getHLFIRVariableType(

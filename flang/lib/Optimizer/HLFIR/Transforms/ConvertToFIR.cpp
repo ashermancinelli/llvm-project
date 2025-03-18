@@ -387,7 +387,9 @@ public:
     } else {
       if (hlfirBaseType != firBase.getType()) {
         declareOp.emitOpError()
-            << "unhandled HLFIR variable type '" << hlfirBaseType << "' does not match fir type '" << firBase.getType() << "' with memref '" << memref << "'\n";
+            << "unhandled HLFIR variable type '" << hlfirBaseType
+            << "' does not match fir type '" << firBase.getType()
+            << "' with memref '" << memref << "'\n";
         return mlir::failure();
       }
       hlfirBase = firBase;
@@ -422,7 +424,8 @@ class DesignateOpConversion
       i = i + (isTriplet ? 3 : 1);
     }
     auto designateResultType = designate.getResult().getType();
-    auto isVolatile = mlir::isa<fir::VolatileReferenceType>(designateResultType);
+    auto isVolatile =
+        mlir::isa<fir::VolatileReferenceType>(designateResultType);
     mlir::Type refTy = fir::ReferenceType::get(baseEleTy);
     mlir::Type volTy = fir::VolatileReferenceType::get(baseEleTy);
     base = builder.create<fir::ArrayCoorOp>(
@@ -442,8 +445,6 @@ public:
     fir::FirOpBuilder builder(rewriter, designate.getOperation());
 
     hlfir::Entity baseEntity(designate.getMemref());
-    bool isVolatile = mlir::isa<fir::VolatileReferenceType>(designate.getResult().getType());
-    mlir::Type baseType = baseEntity.getBase().getType();
     if (baseEntity.isMutableBox())
       TODO(loc, "hlfir::designate load of pointer or allocatable");
 

@@ -65,7 +65,8 @@ public:
   bool isVolatile() const {
     if (auto iface = getIfVariableInterface()) {
       if (auto attrs = iface.getFortranAttrs()) {
-        return bitEnumContainsAny(attrs.value(), fir::FortranVariableFlagsEnum::fortran_volatile);
+        return bitEnumContainsAny(
+            attrs.value(), fir::FortranVariableFlagsEnum::fortran_volatile);
       }
     }
     return false;

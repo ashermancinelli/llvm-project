@@ -82,7 +82,8 @@ void hlfir::ExprType::print(mlir::AsmPrinter &printer) const {
 
 bool hlfir::isFortranVariableType(mlir::Type type) {
   return llvm::TypeSwitch<mlir::Type, bool>(type)
-      .Case<fir::ReferenceType, fir::VolatileReferenceType, fir::PointerType, fir::HeapType>([](auto p) {
+      .Case<fir::ReferenceType, fir::VolatileReferenceType, fir::PointerType,
+            fir::HeapType>([](auto p) {
         mlir::Type eleType = p.getEleTy();
         return mlir::isa<fir::BaseBoxType>(eleType) ||
                !fir::hasDynamicSize(eleType);
