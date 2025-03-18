@@ -199,6 +199,35 @@ mlir::Type hlfir::DeclareOp::getHLFIRVariableType(mlir::Type inputType,
   return inputType;
 }
 
+// Updated version with volatile support
+mlir::Type hlfir::DeclareOp::getHLFIRVariableType(mlir::Type inputType,
+                                                  bool hasExplicitLowerBounds,
+                                                  bool isVolatile) {
+  mlir::Type type = fir::unwrapRefType(inputType);
+  if (mlir::isa<fir::BaseBoxType>(type))
+    return inputType;
+  if (auto charType = mlir::dyn_cast<fir::CharacterType>(type))
+    if (charType.hasDynamicLen())
+      return fir::BoxCharType::get(charType.getContext(), charType.getFKind());
+
+  auto seqType = mlir::dyn_cast<fir::SequenceType>(type);
+  bool hasDynamicExtents =
+      seqType && fir::sequenceWithNonConstantShape(seqType);
+  mlir::Type eleType = seqType ? seqType.getEleTy() : type;
+  bool hasDynamicLengthParams = fir::characterWithDynamicLen(eleType) ||
+                                fir::isRecordWithTypeParameters(eleType);
+  if (hasExplicitLowerBounds || hasDynamicExtents || hasDynamicLengthParams)
+    return fir::BoxType::get(type);
+
+  // If this is a reference type and has the volatile attribute, use VolatileReferenceType
+  if (isVolatile && mlir::isa<fir::ReferenceType>(inputType)) {
+    auto refType = mlir::cast<fir::ReferenceType>(inputType);
+    return fir::VolatileReferenceType::get(refType.getEleTy());
+  }
+  
+  return inputType;
+}
+
 static bool hasExplicitLowerBounds(mlir::Value shape) {
   return shape &&
          mlir::isa<fir::ShapeShiftType, fir::ShiftType>(shape.getType());
@@ -214,18 +243,45 @@ void hlfir::DeclareOp::build(mlir::OpBuilder &builder,
   auto nameAttr = builder.getStringAttr(uniq_name);
   mlir::Type inputType = memref.getType();
   bool hasExplicitLbs = hasExplicitLowerBounds(shape);
+  bool isVolatile = false;
+  if (fortran_attrs && mlir::isa<fir::ReferenceType>(inputType) &&
+      bitEnumContainsAny(fortran_attrs.getFlags(), fir::FortranVariableFlagsEnum::fortran_volatile)) {
+    auto refType = mlir::cast<fir::ReferenceType>(inputType);
+    isVolatile = true;
+    inputType = fir::VolatileReferenceType::get(refType.getEleTy());
+    memref = builder.create<fir::ConvertOp>(memref.getLoc(), inputType, memref);
+  }
   mlir::Type hlfirVariableType =
-      getHLFIRVariableType(inputType, hasExplicitLbs);
+      getHLFIRVariableType(inputType, hasExplicitLbs, isVolatile);
+      
   build(builder, result, {hlfirVariableType, inputType}, memref, shape,
         typeparams, dummy_scope, nameAttr, fortran_attrs, data_attr);
+}
+
+static bool hlfirVariableTypeCompatible(mlir::Type memrefType, mlir::Type outputType) {
+  // if the input and output types don't match, they are still compatible ONLY if this is
+  // due to the variable being declared volatile.
+  if (auto inputRefTy = mlir::dyn_cast<fir::ReferenceType>(memrefType)) {
+    if (auto hlfirRefTy = mlir::dyn_cast<fir::VolatileReferenceType>(outputType)) {
+      return hlfirRefTy.getEleTy() == inputRefTy.getEleTy();
+    }
+  }
+  return memrefType == outputType;
 }
 
 llvm::LogicalResult hlfir::DeclareOp::verify() {
   if (getMemref().getType() != getResult(1).getType())
     return emitOpError("second result type must match input memref type");
+  fir::FortranVariableFlagsAttr attrs;
+  bool isVolatile = false;
+  if (getFortranAttrs().has_value()) {
+    auto flagsEnum = getFortranAttrs().value();
+    isVolatile = bitEnumContainsAny(flagsEnum, fir::FortranVariableFlagsEnum::fortran_volatile);
+    attrs = fir::FortranVariableFlagsAttr::get(getContext(), flagsEnum);
+  }
   mlir::Type hlfirVariableType = getHLFIRVariableType(
-      getMemref().getType(), hasExplicitLowerBounds(getShape()));
-  if (hlfirVariableType != getResult(0).getType())
+      getMemref().getType(), hasExplicitLowerBounds(getShape()), isVolatile);
+  if (!hlfirVariableTypeCompatible(getResult(0).getType(), hlfirVariableType))
     return emitOpError("first result type is inconsistent with variable "
                        "properties: expected ")
            << hlfirVariableType;

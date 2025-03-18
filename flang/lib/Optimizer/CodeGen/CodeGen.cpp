@@ -699,12 +699,17 @@ struct ConvertOpConversion : public fir::FIROpConversion<fir::ConvertOp> {
   llvm::LogicalResult
   matchAndRewrite(fir::ConvertOp convert, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
+    llvm::dbgs() << "ConvertOpConversion\n";
     auto fromFirTy = convert.getValue().getType();
     auto toFirTy = convert.getRes().getType();
+    llvm::dbgs() << "fromFirTy: " << fromFirTy << "\n";
+    llvm::dbgs() << "toFirTy: " << toFirTy << "\n";
     auto fromTy = convertType(fromFirTy);
     auto toTy = convertType(toFirTy);
+    llvm::dbgs() << "fromTy: " << fromTy << "\n";
+    llvm::dbgs() << "toTy: " << toTy << "\n";
     mlir::Value op0 = adaptor.getOperands()[0];
-
+    llvm::dbgs() << "op0: " << op0 << "\n";
     if (fromFirTy == toFirTy) {
       rewriter.replaceOp(convert, op0);
       return mlir::success();
@@ -3217,6 +3222,9 @@ struct LoadOpConversion : public fir::FIROpConversion<fir::LoadOp> {
   matchAndRewrite(fir::LoadOp load, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
 
+    mlir::Type originalLoadTy = load.getMemref().getType();
+    const bool isVolatile = mlir::isa<fir::VolatileReferenceType>(originalLoadTy);
+    auto volatileAttr = mlir::UnitAttr::get(load.getContext());
     mlir::Type llvmLoadTy = convertObjectType(load.getType());
     if (auto boxTy = mlir::dyn_cast<fir::BaseBoxType>(load.getType())) {
       // fir.box is a special case because it is considered an ssa value in
@@ -3256,7 +3264,7 @@ struct LoadOpConversion : public fir::FIROpConversion<fir::LoadOp> {
       rewriter.replaceOp(load, newBoxStorage);
     } else {
       auto loadOp = rewriter.create<mlir::LLVM::LoadOp>(
-          load.getLoc(), llvmLoadTy, adaptor.getOperands(), load->getAttrs());
+          load.getLoc(), llvmLoadTy, adaptor.getOperands()[0], 0, isVolatile);
       if (std::optional<mlir::ArrayAttr> optionalTag = load.getTbaa())
         loadOp.setTBAATags(*optionalTag);
       else
@@ -3531,9 +3539,14 @@ struct StoreOpConversion : public fir::FIROpConversion<fir::StoreOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     mlir::Location loc = store.getLoc();
     mlir::Type storeTy = store.getValue().getType();
+    mlir::Type originalStoreTy = store.getMemref().getType();
+    const bool isVolatile = mlir::isa<fir::VolatileReferenceType>(originalStoreTy);
     mlir::Value llvmValue = adaptor.getValue();
     mlir::Value llvmMemref = adaptor.getMemref();
     mlir::LLVM::AliasAnalysisOpInterface newOp;
+    llvm::dbgs() << "storeTy: " << storeTy << "\n";
+    llvm::dbgs() << "originalStoreTy: " << originalStoreTy << "\n";
+    llvm::dbgs() << "isVolatile: " << isVolatile << "\n";
     if (auto boxTy = mlir::dyn_cast<fir::BaseBoxType>(storeTy)) {
       mlir::Type llvmBoxTy = lowerTy().convertBoxTypeAsStruct(boxTy);
       // Always use memcpy because LLVM is not as effective at optimizing
@@ -3542,10 +3555,11 @@ struct StoreOpConversion : public fir::FIROpConversion<fir::StoreOp> {
       mlir::Value boxSize =
           computeBoxSize(loc, boxTypePair, llvmValue, rewriter);
       newOp = rewriter.create<mlir::LLVM::MemcpyOp>(
-          loc, llvmMemref, llvmValue, boxSize, /*isVolatile=*/false);
+          loc, llvmMemref, llvmValue, boxSize, isVolatile);
     } else {
-      newOp = rewriter.create<mlir::LLVM::StoreOp>(loc, llvmValue, llvmMemref);
+      newOp = rewriter.create<mlir::LLVM::StoreOp>(loc, llvmValue, llvmMemref, 0, isVolatile, false);
     }
+    llvm::dbgs() << "newOp: " << newOp << "\n";
     if (std::optional<mlir::ArrayAttr> optionalTag = store.getTbaa())
       newOp.setTBAATags(*optionalTag);
     else

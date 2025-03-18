@@ -751,16 +751,22 @@ std::pair<mlir::Value, mlir::Value> hlfir::genVariableFirBaseShapeAndParams(
     mlir::Location loc, fir::FirOpBuilder &builder, Entity entity,
     llvm::SmallVectorImpl<mlir::Value> &typeParams) {
   auto [exv, cleanup] = translateToExtendedValue(loc, builder, entity);
+  llvm::dbgs() << "exv: " << exv << "\n";
   assert(!cleanup && "variable to Exv should not produce cleanup");
   if (entity.hasLengthParameters()) {
+    llvm::dbgs() << "entity.hasLengthParameters()\n";
     auto params = fir::getTypeParams(exv);
     typeParams.append(params.begin(), params.end());
   }
-  if (entity.isScalar())
+  if (entity.isScalar()) {
+    llvm::dbgs() << "entity.isScalar()\n";
     return {fir::getBase(exv), mlir::Value{}};
-  if (auto variableInterface = entity.getIfVariableInterface())
+  }
+  if (auto variableInterface = entity.getIfVariableInterface()) {
+    llvm::dbgs() << "variableInterface: " << variableInterface << "\n";
     return {fir::getBase(exv),
             asEmboxShape(loc, builder, exv, variableInterface.getShape())};
+  }
   return {fir::getBase(exv), builder.createShape(loc, exv)};
 }
 
@@ -808,6 +814,9 @@ mlir::Type hlfir::getVariableElementType(hlfir::Entity variable) {
       return fir::BoxCharType::get(charType.getContext(), charType.getFKind());
   } else if (fir::isRecordWithTypeParameters(eleTy)) {
     return fir::BoxType::get(eleTy);
+  }
+  if (variable.isVolatile()) {
+    return fir::VolatileReferenceType::get(eleTy);
   }
   return fir::ReferenceType::get(eleTy);
 }

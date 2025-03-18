@@ -36,6 +36,16 @@
 
 namespace {
 
+/// Determine if a given symbol or designator has the VOLATILE attribute.
+static bool isVolatileDesignator(const Fortran::semantics::Symbol &symbol) {
+  return symbol.GetUltimate().attrs().test(Fortran::semantics::Attr::VOLATILE);
+}
+
+/// Determine if a given symbol has the VOLATILE attribute.
+static bool isVolatileSymbol(const Fortran::semantics::Symbol &symbol) {
+  return symbol.GetUltimate().attrs().test(Fortran::semantics::Attr::VOLATILE);
+}
+
 /// Lower Designators to HLFIR.
 class HlfirDesignatorBuilder {
 private:
@@ -223,6 +233,16 @@ private:
             designatorNode, getConverter().getFoldingContext(),
             /*namedConstantSectionsAreAlwaysContiguous=*/false))
       return fir::BoxType::get(resultValueType);
+
+    // Check if this should be a volatile reference
+    if constexpr (std::is_same_v<std::decay_t<T>, Fortran::evaluate::SymbolRef>) {
+      if (isVolatileSymbol(designatorNode.get()))
+        return fir::VolatileReferenceType::get(resultValueType);
+    } else if constexpr (std::is_same_v<std::decay_t<T>, Fortran::evaluate::Component>) {
+      if (isVolatileSymbol(designatorNode.GetLastSymbol()))
+        return fir::VolatileReferenceType::get(resultValueType);
+    }
+
     // Other designators can be handled as raw addresses.
     return fir::ReferenceType::get(resultValueType);
   }

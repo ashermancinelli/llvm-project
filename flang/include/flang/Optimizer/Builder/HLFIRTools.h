@@ -51,6 +51,7 @@ inline bool isFortranEntityWithAttributes(mlir::Value value) {
 class Entity : public mlir::Value {
 public:
   explicit Entity(mlir::Value value) : mlir::Value(value) {
+    llvm::dbgs() << value << " " << value.getType() << "\n";
     assert(isFortranEntity(value) &&
            "must be a value representing a Fortran value or variable like");
   }
@@ -61,6 +62,14 @@ public:
   bool isMutableBox() const { return hlfir::isBoxAddressType(getType()); }
   bool isProcedurePointer() const {
     return hlfir::isFortranProcedurePointerType(getType());
+  }
+  bool isVolatile() const {
+    if (auto iface = getIfVariableInterface()) {
+      if (auto attrs = iface.getFortranAttrs()) {
+        return bitEnumContainsAny(attrs.value(), fir::FortranVariableFlagsEnum::fortran_volatile);
+      }
+    }
+    return false;
   }
   bool isBoxAddressOrValue() const {
     return hlfir::isBoxAddressOrValueType(getType());

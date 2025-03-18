@@ -18,7 +18,7 @@ include "mlir/IR/EnumAttr.td"
 
 class fir_Attr<string name> : AttrDef<FIROpsDialect, name>;
 
-def FIRnoAttributes  : I32BitEnumAttrCaseNone<"None">;
+def FIRnoAttributes : I32BitEnumAttrCaseNone<"None">;
 def FIRallocatable  : I32BitEnumAttrCaseBit<"allocatable", 0>;
 def FIRasynchronous : I32BitEnumAttrCaseBit<"asynchronous", 1>;
 def FIRbind_c       : I32BitEnumAttrCaseBit<"bind_c", 2>;

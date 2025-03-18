@@ -270,7 +270,7 @@ llvm::LogicalResult fir::AllocaOp::verify() {
   if (verifyTypeParamCount(getInType(), numLenParams()))
     return emitOpError("LEN params do not correspond to type");
   mlir::Type outType = getType();
-  if (!mlir::isa<fir::ReferenceType>(outType))
+  if (!mlir::isa<fir::ReferenceType, fir::VolatileReferenceType>(outType))
     return emitOpError("must be a !fir.ref type");
   return mlir::success();
 }
@@ -305,7 +305,7 @@ static mlir::Type wrapAllocMemResultType(mlir::Type intype) {
   // Fortran semantics: C852 an entity cannot be both ALLOCATABLE and POINTER
   // 8.5.3 note 1 prohibits ALLOCATABLE procedures as well
   // FIR semantics: one may not allocate a memory reference value
-  if (mlir::isa<fir::ReferenceType, fir::HeapType, fir::PointerType,
+  if (mlir::isa<fir::ReferenceType, fir::VolatileReferenceType, fir::HeapType, fir::PointerType,
                 mlir::FunctionType>(intype))
     return {};
   return fir::HeapType::get(intype);
@@ -823,15 +823,18 @@ void fir::ArrayCoorOp::getCanonicalizationPatterns(
 //===----------------------------------------------------------------------===//
 
 static mlir::Type adjustedElementType(mlir::Type t) {
+  mlir::Type eleTy;
   if (auto ty = mlir::dyn_cast<fir::ReferenceType>(t)) {
-    auto eleTy = ty.getEleTy();
-    if (fir::isa_char(eleTy))
-      return eleTy;
-    if (fir::isa_derived(eleTy))
-      return eleTy;
-    if (mlir::isa<fir::SequenceType>(eleTy))
-      return eleTy;
+    eleTy = ty.getEleTy();
+  } else if (auto volType = mlir::dyn_cast<fir::VolatileReferenceType>(t)) {
+    eleTy = volType.getEleTy();
   }
+  if (fir::isa_char(eleTy))
+    return eleTy;
+  if (fir::isa_derived(eleTy))
+    return eleTy;
+  if (mlir::isa<fir::SequenceType>(eleTy))
+    return eleTy;
   return t;
 }
 
@@ -1364,7 +1367,8 @@ bool fir::ConvertOp::isFloatCompatible(mlir::Type ty) {
 }
 
 bool fir::ConvertOp::isPointerCompatible(mlir::Type ty) {
-  return mlir::isa<fir::ReferenceType, fir::PointerType, fir::HeapType,
+  return mlir::isa<fir::ReferenceType, fir::VolatileReferenceType,
+                   fir::PointerType, fir::HeapType,
                    fir::LLVMPointerType, mlir::MemRefType, mlir::FunctionType,
                    fir::TypeDescType, mlir::LLVM::LLVMPointerType>(ty);
 }

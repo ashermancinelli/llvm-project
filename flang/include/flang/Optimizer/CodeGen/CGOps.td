@@ -30,6 +30,14 @@ def fircg_Dialect : Dialect {
 class fircg_Op<string mnemonic, list<Trait> traits>
   : Op<fircg_Dialect, mnemonic, traits>;
 
+def fircg_VolatileLoadOp : fircg_Op<"volatile_load", []> {
+  let summary = "for internal conversion only";
+  let description = [{
+    arg must be ref of volatile
+  }];
+  let arguments = (ins Arg<AnyReferenceLike, "", [MemRead]>:$memref);
+}
+
 // Extended embox operation.
 def fircg_XEmboxOp : fircg_Op<"ext_embox", [AttrSizedOperandSegments]> {
   let summary = "for internal conversion only";
@@ -199,7 +207,7 @@ def fircg_XArrayCoorOp : fircg_Op<"ext_array_coor", [AttrSizedOperandSegments]> 
     Variadic<AnyCoordinateType>:$indices,
     Variadic<AnyIntegerType>:$lenParams
   );
-  let results = (outs fir_ReferenceType);
+  let results = (outs AnyReferenceType);
 
   let assemblyFormat = [{
     $memref (`(`$shape^`)`)? (`origin` $shift^)? (`[`$slice^`]`)?
