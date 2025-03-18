@@ -410,9 +410,6 @@ class DesignateOpConversion
       mlir::Value shape,
       const llvm::SmallVector<mlir::Value> &firBaseTypeParameters) {
     assert(!designate.getIndices().empty());
-    if (auto decl = mlir::dyn_cast<hlfir::DeclareOp>(base.getDefiningOp())) {
-      base = decl.getResult(0);
-    }
     llvm::SmallVector<mlir::Value> firstElementIndices;
     auto indices = designate.getIndices();
     int i = 0;
@@ -428,6 +425,9 @@ class DesignateOpConversion
         mlir::isa<fir::VolatileReferenceType>(designateResultType);
     mlir::Type refTy = fir::ReferenceType::get(baseEleTy);
     mlir::Type volTy = fir::VolatileReferenceType::get(baseEleTy);
+    llvm::dbgs() << "baseEleTy: " << baseEleTy << "\n";
+    llvm::dbgs() << "refTy: " << refTy << "\n";
+    llvm::dbgs() << "volTy: " << volTy << "\n";
     base = builder.create<fir::ArrayCoorOp>(
         loc, isVolatile ? volTy : refTy, base, shape,
         /*slice=*/mlir::Value{}, firstElementIndices, firBaseTypeParameters);

@@ -441,8 +441,9 @@ llvm::LogicalResult fir::ArrayCoorOp::verify() {
       if (sliceTy.getRank() != arrDim)
         return emitOpError("rank of dimension in slice mismatched");
   }
-  if (!validTypeParams(getMemref().getType(), getTypeparams()))
+  if (!validTypeParams(getMemref().getType(), getTypeparams())) {
     return emitOpError("invalid type parameters");
+  }
 
   return mlir::success();
 }
@@ -823,18 +824,15 @@ void fir::ArrayCoorOp::getCanonicalizationPatterns(
 //===----------------------------------------------------------------------===//
 
 static mlir::Type adjustedElementType(mlir::Type t) {
-  mlir::Type eleTy;
-  if (auto ty = mlir::dyn_cast<fir::ReferenceType>(t)) {
-    eleTy = ty.getEleTy();
-  } else if (auto volType = mlir::dyn_cast<fir::VolatileReferenceType>(t)) {
-    eleTy = volType.getEleTy();
+  if (fir::isa_ref_type(t)) {
+    mlir::Type eleTy = fir::dyn_cast_ptrEleTy(t);
+    if (fir::isa_char(eleTy))
+      return eleTy;
+    if (fir::isa_derived(eleTy))
+      return eleTy;
+    if (mlir::isa<fir::SequenceType>(eleTy))
+      return eleTy;
   }
-  if (fir::isa_char(eleTy))
-    return eleTy;
-  if (fir::isa_derived(eleTy))
-    return eleTy;
-  if (mlir::isa<fir::SequenceType>(eleTy))
-    return eleTy;
   return t;
 }
 
