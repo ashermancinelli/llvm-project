@@ -124,8 +124,7 @@ def hlfir_DeclareOp : hlfir_Op<"declare", [AttrSizedOperandSegments,
 
     /// Given a FIR memory type, and information about non default lower
     /// bounds, get the related HLFIR variable type.
-    static mlir::Type getHLFIRVariableType(mlir::Type type, bool hasLowerBounds);
-    static mlir::Type getHLFIRVariableType(mlir::Type type, bool hasLowerBounds, bool isVolatile);
+    static mlir::Type getHLFIRVariableType(mlir::Type type, bool hasLowerBounds, bool isVolatile=false);
   }];
 
   let hasVerifier = 1;

@@ -180,27 +180,6 @@ void hlfir::AssignOp::getEffects(
 /// Given a FIR memory type, and information about non default lower bounds, get
 /// the related HLFIR variable type.
 mlir::Type hlfir::DeclareOp::getHLFIRVariableType(mlir::Type inputType,
-                                                  bool hasExplicitLowerBounds) {
-  mlir::Type type = fir::unwrapRefType(inputType);
-  if (mlir::isa<fir::BaseBoxType>(type))
-    return inputType;
-  if (auto charType = mlir::dyn_cast<fir::CharacterType>(type))
-    if (charType.hasDynamicLen())
-      return fir::BoxCharType::get(charType.getContext(), charType.getFKind());
-
-  auto seqType = mlir::dyn_cast<fir::SequenceType>(type);
-  bool hasDynamicExtents =
-      seqType && fir::sequenceWithNonConstantShape(seqType);
-  mlir::Type eleType = seqType ? seqType.getEleTy() : type;
-  bool hasDynamicLengthParams = fir::characterWithDynamicLen(eleType) ||
-                                fir::isRecordWithTypeParameters(eleType);
-  if (hasExplicitLowerBounds || hasDynamicExtents || hasDynamicLengthParams)
-    return fir::BoxType::get(type);
-  return inputType;
-}
-
-// Updated version with volatile support
-mlir::Type hlfir::DeclareOp::getHLFIRVariableType(mlir::Type inputType,
                                                   bool hasExplicitLowerBounds,
                                                   bool isVolatile) {
   mlir::Type type = fir::unwrapRefType(inputType);
@@ -224,7 +203,7 @@ mlir::Type hlfir::DeclareOp::getHLFIRVariableType(mlir::Type inputType,
     auto refType = mlir::cast<fir::ReferenceType>(inputType);
     return fir::VolatileReferenceType::get(refType.getEleTy());
   }
-  
+
   return inputType;
 }
 

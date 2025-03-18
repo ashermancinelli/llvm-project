@@ -295,7 +295,6 @@ public:
                   mlir::PatternRewriter &rewriter) const override {
     mlir::Location loc = declareOp->getLoc();
     mlir::Value memref = declareOp.getMemref();
-    mlir::Type memrefType = memref.getType();
     fir::FortranVariableFlagsAttr fortranAttrs;
     cuf::DataAttributeAttr dataAttr;
     if (auto attrs = declareOp.getFortranAttrs())
@@ -303,11 +302,8 @@ public:
           fir::FortranVariableFlagsAttr::get(rewriter.getContext(), *attrs);
     if (auto attr = declareOp.getDataAttr())
       dataAttr = cuf::DataAttributeAttr::get(rewriter.getContext(), *attr);
-    if (auto volType = mlir::dyn_cast<fir::VolatileReferenceType>(declareOp.getResult(0).getType())) {
-      memrefType = volType;
-    }
     auto firDeclareOp = rewriter.create<fir::DeclareOp>(
-        loc, memrefType, memref, declareOp.getShape(),
+        loc, memref.getType(), memref, declareOp.getShape(),
         declareOp.getTypeparams(), declareOp.getDummyScope(),
         declareOp.getUniqName(), fortranAttrs, dataAttr);
 
@@ -389,19 +385,12 @@ public:
       hlfirBase = rewriter.create<fir::EmboxCharOp>(
           loc, hlfirBaseType, firBase, declareOp.getTypeparams()[0]);
     } else {
-      llvm::dbgs() << "hlfirBaseType: " << hlfirBaseType << "\n";
-      llvm::dbgs() << "firBase.getType(): " << firBase.getType() << "\n";
-      auto volType = mlir::dyn_cast<fir::VolatileReferenceType>(hlfirBaseType);
-      auto refType = mlir::dyn_cast<fir::ReferenceType>(firBase.getType());
-      if (volType && refType && volType.getEleTy() == refType.getEleTy()) {
-        firBase = hlfirBase;
-      } else if (hlfirBaseType != firBase.getType()) {
+      if (hlfirBaseType != firBase.getType()) {
         declareOp.emitOpError()
             << "unhandled HLFIR variable type '" << hlfirBaseType << "' does not match fir type '" << firBase.getType() << "' with memref '" << memref << "'\n";
         return mlir::failure();
-      } else {
-        hlfirBase = firBase;
       }
+      hlfirBase = firBase;
     }
     rewriter.replaceOp(declareOp, {hlfirBase, firBase});
     return mlir::success();
@@ -419,10 +408,6 @@ class DesignateOpConversion
       mlir::Value shape,
       const llvm::SmallVector<mlir::Value> &firBaseTypeParameters) {
     assert(!designate.getIndices().empty());
-    llvm::dbgs() << "genSubscriptBeginAddr\n";
-    llvm::dbgs() << "baseEleTy: " << baseEleTy << "\n";
-    llvm::dbgs() << "base: " << base << "\n";
-    llvm::dbgs() << "shape: " << shape << "\n";
     if (auto decl = mlir::dyn_cast<hlfir::DeclareOp>(base.getDefiningOp())) {
       base = decl.getResult(0);
     }
@@ -436,19 +421,13 @@ class DesignateOpConversion
       firstElementIndices.push_back(indices[i]);
       i = i + (isTriplet ? 3 : 1);
     }
-    llvm::dbgs() << "building array coor\n";
     auto designateResultType = designate.getResult().getType();
-    llvm::dbgs() << "designateResultType: " << designateResultType << "\n";
     auto isVolatile = mlir::isa<fir::VolatileReferenceType>(designateResultType);
-    llvm::dbgs() << "isVolatile: " << isVolatile << "\n";
     mlir::Type refTy = fir::ReferenceType::get(baseEleTy);
     mlir::Type volTy = fir::VolatileReferenceType::get(baseEleTy);
-    llvm::dbgs() << "refTy: " << refTy << "\n";
-    llvm::dbgs() << "volTy: " << volTy << "\n";
     base = builder.create<fir::ArrayCoorOp>(
         loc, isVolatile ? volTy : refTy, base, shape,
         /*slice=*/mlir::Value{}, firstElementIndices, firBaseTypeParameters);
-    llvm::dbgs() << "base: " << base << "\n";
     return base;
   }
 
@@ -459,35 +438,25 @@ public:
   llvm::LogicalResult
   matchAndRewrite(hlfir::DesignateOp designate,
                   mlir::PatternRewriter &rewriter) const override {
-    llvm::dbgs() << "DesignateOpConversion\n";
     mlir::Location loc = designate.getLoc();
     fir::FirOpBuilder builder(rewriter, designate.getOperation());
 
     hlfir::Entity baseEntity(designate.getMemref());
     bool isVolatile = mlir::isa<fir::VolatileReferenceType>(designate.getResult().getType());
-    llvm::dbgs() << "baseEntity: " << baseEntity << "\n";
     mlir::Type baseType = baseEntity.getBase().getType();
-    llvm::dbgs() << "baseType: " << baseType << "\n";
     if (baseEntity.isMutableBox())
       TODO(loc, "hlfir::designate load of pointer or allocatable");
 
     mlir::Type designateResultType = designate.getResult().getType();
-    llvm::dbgs() << "designateResultType: " << designateResultType << "\n";
     llvm::SmallVector<mlir::Value> firBaseTypeParameters;
     auto [base, shape] = hlfir::genVariableFirBaseShapeAndParams(
         loc, builder, baseEntity, firBaseTypeParameters);
     mlir::Type baseEleTy = hlfir::getFortranElementType(base.getType());
     mlir::Type resultEleTy = hlfir::getFortranElementType(designateResultType);
-    llvm::dbgs() << "base: " << base << " " << base.getType() << "\n";
-    llvm::dbgs() << "shape: " << shape << " " << shape.getType() << "\n";
-    llvm::dbgs() << "baseEleTy: " << baseEleTy << "\n";
-    llvm::dbgs() << "resultEleTy: " << resultEleTy << "\n";
 
     mlir::Value fieldIndex;
     if (designate.getComponent()) {
-      llvm::dbgs() << "designate.getComponent(): " << designate.getComponent() << "\n";
       mlir::Type baseRecordType = baseEntity.getFortranElementType();
-      llvm::dbgs() << "baseRecordType: " << baseRecordType << "\n";
       if (fir::isRecordWithTypeParameters(baseRecordType))
         TODO(loc, "hlfir.designate with a parametrized derived type base");
       fieldIndex = builder.create<fir::FieldIndexOp>(
@@ -495,7 +464,6 @@ public:
           designate.getComponent().value(), baseRecordType,
           /*typeParams=*/mlir::ValueRange{});
       if (baseEntity.isScalar()) {
-        llvm::dbgs() << "baseEntity.isScalar()\n";
         // Component refs of scalar base right away:
         // - scalar%scalar_component [substring|complex_part] or
         // - scalar%static_size_array_comp
@@ -503,13 +471,9 @@ public:
         mlir::Type componentType =
             mlir::cast<fir::RecordType>(baseEleTy).getType(
                 designate.getComponent().value());
-        llvm::dbgs() << "componentType: " << componentType << "\n";
         mlir::Type coorTy = fir::ReferenceType::get(componentType);
-        llvm::dbgs() << "coorTy: " << coorTy << "\n";
         base = builder.create<fir::CoordinateOp>(loc, coorTy, base, fieldIndex);
-        llvm::dbgs() << "base: " << base << "\n";
         if (mlir::isa<fir::BaseBoxType>(componentType)) {
-          llvm::dbgs() << "mlir::isa<fir::BaseBoxType>(componentType)\n";
           auto variableInterface = mlir::cast<fir::FortranVariableOpInterface>(
               designate.getOperation());
           if (variableInterface.isAllocatable() ||
@@ -522,8 +486,6 @@ public:
         }
         baseEleTy = hlfir::getFortranElementType(componentType);
         shape = designate.getComponentShape();
-        llvm::dbgs() << "baseEleTy: " << baseEleTy << "\n";
-        llvm::dbgs() << "shape: " << shape << "\n";
       } else {
         // array%component[(indices) substring|complex part] cases.
         // Component ref of array bases are dealt with below in embox/rebox.
@@ -532,7 +494,6 @@ public:
     }
 
     if (mlir::isa<fir::BaseBoxType>(designateResultType)) {
-      llvm::dbgs() << "mlir::isa<fir::BaseBoxType>(designateResultType)" << __LINE__ << "\n";
       // Generate embox or rebox.
       mlir::Type eleTy = fir::unwrapPassByRefType(designateResultType);
       bool isScalarDesignator = !mlir::isa<fir::SequenceType>(eleTy);
@@ -541,7 +502,6 @@ public:
         // The base box will be used for emboxing the scalar element.
         sourceBox = base;
         // Generate the coordinate of the element.
-        llvm::dbgs() << "isScalarDesignator\n";
         base = genSubscriptBeginAddr(builder, loc, designate, baseEleTy, base,
                                      shape, firBaseTypeParameters);
         shape = nullptr;
@@ -629,7 +589,6 @@ public:
     mlir::Type resultAddressType = designateResultType;
     if (auto boxCharType =
             mlir::dyn_cast<fir::BoxCharType>(designateResultType)) {
-      llvm::dbgs() << "mlir::dyn_cast<fir::BoxCharType>(designateResultType)" << __LINE__ << "\n";
       resultAddressType = fir::ReferenceType::get(boxCharType.getEleTy());
     }
 
@@ -639,11 +598,8 @@ public:
       // - scalar%array_comp(indices) [substring|complex_part]
       // This may be a ranked contiguous array section in which case
       // The first element address is being computed.
-      llvm::dbgs() << "!designate.getIndices().empty()" << __LINE__ << "\n";
-      llvm::dbgs() << "base before genSubscriptBeginAddr: " << __LINE__ << " " << base << "\n";
       base = genSubscriptBeginAddr(builder, loc, designate, baseEleTy, base,
                                    shape, firBaseTypeParameters);
-      llvm::dbgs() << "base after genSubscriptBeginAddr: " << __LINE__ << base << "\n";
     }
 
     // Scalar substring (potentially on the previously built array element or
@@ -654,7 +610,6 @@ public:
 
     // Scalar complex part ref
     if (designate.getComplexPart()) {
-      llvm::dbgs() << "designate.getComplexPart()" << __LINE__ << "\n";
       // Sequence types should have already been handled by this point
       assert(!mlir::isa<fir::SequenceType>(designateResultType));
       auto index = builder.createIntegerConstant(loc, builder.getIndexType(),
@@ -665,18 +620,13 @@ public:
 
     // Cast/embox the computed scalar address if needed.
     if (mlir::isa<fir::BoxCharType>(designateResultType)) {
-      llvm::dbgs() << "mlir::isa<fir::BoxCharType>(designateResultType)" << __LINE__ << "\n";
       assert(designate.getTypeparams().size() == 1 &&
              "must have character length");
       auto emboxChar = builder.create<fir::EmboxCharOp>(
           loc, designateResultType, base, designate.getTypeparams()[0]);
       rewriter.replaceOp(designate, emboxChar.getResult());
     } else {
-      llvm::dbgs() << "createConvert" << __LINE__ << "\n";
-      llvm::dbgs() << "designateResultType: " << designateResultType << "\n";
-      llvm::dbgs() << "base: " << base << "\n";
       base = builder.createConvert(loc, designateResultType, base);
-      llvm::dbgs() << "base after conversion: " << base << "\n";
       rewriter.replaceOp(designate, base);
     }
     return mlir::success();

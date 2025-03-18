@@ -30,14 +30,6 @@ def fircg_Dialect : Dialect {
 class fircg_Op<string mnemonic, list<Trait> traits>
   : Op<fircg_Dialect, mnemonic, traits>;
 
-def fircg_VolatileLoadOp : fircg_Op<"volatile_load", []> {
-  let summary = "for internal conversion only";
-  let description = [{
-    arg must be ref of volatile
-  }];
-  let arguments = (ins Arg<AnyReferenceLike, "", [MemRead]>:$memref);
-}
-
 // Extended embox operation.
 def fircg_XEmboxOp : fircg_Op<"ext_embox", [AttrSizedOperandSegments]> {
   let summary = "for internal conversion only";

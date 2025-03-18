@@ -51,7 +51,6 @@ inline bool isFortranEntityWithAttributes(mlir::Value value) {
 class Entity : public mlir::Value {
 public:
   explicit Entity(mlir::Value value) : mlir::Value(value) {
-    llvm::dbgs() << value << " " << value.getType() << "\n";
     assert(isFortranEntity(value) &&
            "must be a value representing a Fortran value or variable like");
   }
