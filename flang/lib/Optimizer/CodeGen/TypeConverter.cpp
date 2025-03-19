@@ -103,6 +103,8 @@ LLVMTypeConverter::LLVMTypeConverter(mlir::ModuleOp module, bool applyTBAA,
       });
   addConversion(
       [&](fir::ReferenceType ref) { return convertPointerLike(ref); });
+  addConversion(
+      [&](fir::VolatileReferenceType ref) { return convertPointerLike(ref); });
   addConversion([&](fir::SequenceType sequence) {
     return convertSequenceType(sequence);
   });

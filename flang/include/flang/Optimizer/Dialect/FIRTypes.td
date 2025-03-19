@@ -375,10 +375,34 @@ def fir_ReferenceType : FIR_Type<"Reference", "ref"> {
 
   let extraClassDeclaration = [{
     mlir::Type getElementType() const { return getEleTy(); }
+    static mlir::Type get(mlir::Type t, bool isVolatile);
   }];
 
   let genVerifyDecl = 1;
   let hasCustomAssemblyFormat = 1;
+}
+
+def fir_VolatileReferenceType : FIR_Type<"VolatileReference", "volatile_ref"> {
+  let summary = "Volatile reference to an entity type";
+
+  let description = [{
+    The type of a volatile reference to an entity in memory.
+  }];
+
+  let parameters = (ins "mlir::Type":$eleTy);
+
+  let builders = [TypeBuilderWithInferredContext<
+                      (ins "mlir::Type":$elementType), [{
+      return Base::get(elementType.getContext(), elementType);
+    }]>,
+  ];
+
+  let extraClassDeclaration = [{
+    mlir::Type getElementType() const { return getEleTy(); }
+  }];
+
+  let genVerifyDecl = 1;
+  let assemblyFormat = "`<` $eleTy `>`";
 }
 
 def fir_ShapeType : FIR_Type<"Shape", "shape"> {
@@ -598,18 +622,28 @@ def AnyCompositeLike : TypeConstraint<Or<[fir_RecordType.predicate,
     fir_VectorType.predicate, IsTupleTypePred, fir_CharacterType.predicate]>,
     "any composite">;
 
+def AnyReferenceType : TypeConstraint<Or<[fir_ReferenceType.predicate,
+                                          fir_VolatileReferenceType.predicate]>,
+                                      "any reference type">;
+
 // Reference types
-def AnyReferenceLike : TypeConstraint<Or<[fir_ReferenceType.predicate,
-    fir_HeapType.predicate, fir_PointerType.predicate,
-    fir_LLVMPointerType.predicate]>, "any reference">;
+def AnyReferenceLike
+    : TypeConstraint<
+          Or<[fir_ReferenceType.predicate, fir_VolatileReferenceType.predicate,
+              fir_HeapType.predicate, fir_PointerType.predicate,
+              fir_LLVMPointerType.predicate]>,
+          "any reference">;
 
 def FuncType : TypeConstraint<FunctionType.predicate, "function type">;
 
 def AnyCodeOrDataRefLike : TypeConstraint<Or<[AnyReferenceLike.predicate,
     FunctionType.predicate]>, "any code or data reference">;
 
-def RefOrLLVMPtr : TypeConstraint<Or<[fir_ReferenceType.predicate,
-    fir_LLVMPointerType.predicate]>, "fir.ref or fir.llvm_ptr">;
+def RefOrLLVMPtr
+    : TypeConstraint<
+          Or<[fir_ReferenceType.predicate, fir_VolatileReferenceType.predicate,
+              fir_LLVMPointerType.predicate]>,
+          "fir.ref or fir.llvm_ptr">;
 
 def AnyBoxLike : TypeConstraint<Or<[fir_BoxType.predicate,
     fir_BoxCharType.predicate, fir_BoxProcType.predicate,
@@ -621,9 +655,12 @@ def BoxOrClassType : TypeConstraint<Or<[fir_BoxType.predicate,
 def AnyRefOrBoxLike : TypeConstraint<Or<[AnyReferenceLike.predicate,
     AnyBoxLike.predicate, FunctionType.predicate]>,
     "any reference or box like">;
-def AnyRefOrBox : TypeConstraint<Or<[fir_ReferenceType.predicate,
-    fir_HeapType.predicate, fir_PointerType.predicate,
-    IsBaseBoxTypePred]>, "any reference or box">;
+def AnyRefOrBox
+    : TypeConstraint<
+          Or<[fir_ReferenceType.predicate, fir_VolatileReferenceType.predicate,
+              fir_HeapType.predicate, fir_PointerType.predicate,
+              IsBaseBoxTypePred]>,
+          "any reference or box">;
 def AnyRefOrBoxType : Type<AnyRefOrBox.predicate, "any legal ref or box type">;
 
 def AnyShapeLike : TypeConstraint<Or<[fir_ShapeType.predicate,
@@ -651,8 +688,11 @@ def AnyCoordinateLike : TypeConstraint<Or<[AnySignlessInteger.predicate,
 def AnyCoordinateType : Type<AnyCoordinateLike.predicate, "coordinate type">;
 
 // The legal types of global symbols
-def AnyAddressableLike : TypeConstraint<Or<[fir_ReferenceType.predicate,
-    FunctionType.predicate]>, "any addressable">;
+def AnyAddressableLike
+    : TypeConstraint<
+          Or<[fir_ReferenceType.predicate, fir_VolatileReferenceType.predicate,
+              FunctionType.predicate]>,
+          "any addressable">;
 
 def ArrayOrBoxOrRecord : TypeConstraint<Or<[fir_SequenceType.predicate,
     IsBaseBoxTypePred, fir_RecordType.predicate]>,

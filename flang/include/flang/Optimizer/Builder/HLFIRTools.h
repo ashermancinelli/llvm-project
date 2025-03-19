@@ -62,6 +62,15 @@ public:
   bool isProcedurePointer() const {
     return hlfir::isFortranProcedurePointerType(getType());
   }
+  bool isVolatile() const {
+    if (auto iface = getIfVariableInterface()) {
+      if (auto attrs = iface.getFortranAttrs()) {
+        return bitEnumContainsAny(
+            attrs.value(), fir::FortranVariableFlagsEnum::fortran_volatile);
+      }
+    }
+    return false;
+  }
   bool isBoxAddressOrValue() const {
     return hlfir::isBoxAddressOrValueType(getType());
   }

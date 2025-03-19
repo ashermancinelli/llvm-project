@@ -756,11 +756,13 @@ std::pair<mlir::Value, mlir::Value> hlfir::genVariableFirBaseShapeAndParams(
     auto params = fir::getTypeParams(exv);
     typeParams.append(params.begin(), params.end());
   }
-  if (entity.isScalar())
+  if (entity.isScalar()) {
     return {fir::getBase(exv), mlir::Value{}};
-  if (auto variableInterface = entity.getIfVariableInterface())
+  }
+  if (auto variableInterface = entity.getIfVariableInterface()) {
     return {fir::getBase(exv),
             asEmboxShape(loc, builder, exv, variableInterface.getShape())};
+  }
   return {fir::getBase(exv), builder.createShape(loc, exv)};
 }
 
@@ -808,6 +810,9 @@ mlir::Type hlfir::getVariableElementType(hlfir::Entity variable) {
       return fir::BoxCharType::get(charType.getContext(), charType.getFKind());
   } else if (fir::isRecordWithTypeParameters(eleTy)) {
     return fir::BoxType::get(eleTy);
+  }
+  if (variable.isVolatile()) {
+    return fir::VolatileReferenceType::get(eleTy);
   }
   return fir::ReferenceType::get(eleTy);
 }
