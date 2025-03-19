@@ -423,14 +423,10 @@ class DesignateOpConversion
     auto designateResultType = designate.getResult().getType();
     auto isVolatile =
         mlir::isa<fir::VolatileReferenceType>(designateResultType);
-    mlir::Type refTy = fir::ReferenceType::get(baseEleTy);
-    mlir::Type volTy = fir::VolatileReferenceType::get(baseEleTy);
-    llvm::dbgs() << "baseEleTy: " << baseEleTy << "\n";
-    llvm::dbgs() << "refTy: " << refTy << "\n";
-    llvm::dbgs() << "volTy: " << volTy << "\n";
+    mlir::Type refTy = fir::ReferenceType::get(baseEleTy, isVolatile);
     base = builder.create<fir::ArrayCoorOp>(
-        loc, isVolatile ? volTy : refTy, base, shape,
-        /*slice=*/mlir::Value{}, firstElementIndices, firBaseTypeParameters);
+        loc, refTy, base, shape, /*slice=*/mlir::Value{},
+        firstElementIndices, firBaseTypeParameters);
     return base;
   }
 

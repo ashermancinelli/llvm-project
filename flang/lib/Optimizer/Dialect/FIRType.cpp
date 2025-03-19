@@ -1076,6 +1076,10 @@ void fir::ReferenceType::print(mlir::AsmPrinter &printer) const {
   printer << "<" << getEleTy() << '>';
 }
 
+mlir::Type fir::ReferenceType::get(mlir::Type t, bool isVolatile) {
+  return isVolatile ? (mlir::Type)fir::VolatileReferenceType::get(t) : (mlir::Type)fir::ReferenceType::get(t);
+}
+
 llvm::LogicalResult fir::ReferenceType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::Type eleTy) {

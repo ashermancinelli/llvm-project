@@ -375,6 +375,7 @@ def fir_ReferenceType : FIR_Type<"Reference", "ref"> {
 
   let extraClassDeclaration = [{
     mlir::Type getElementType() const { return getEleTy(); }
+    static mlir::Type get(mlir::Type t, bool isVolatile);
   }];
 
   let genVerifyDecl = 1;
