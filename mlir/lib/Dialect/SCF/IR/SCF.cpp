@@ -1348,7 +1348,7 @@ void ForallOp::build(
                         mapping.value());
   }
 
-  Region *bodyRegion = result.addRegion();
+Region *bodyRegion = result.addRegion();
   OpBuilder::InsertionGuard g(b);
   b.createBlock(bodyRegion);
   Block &bodyBlock = bodyRegion->front();

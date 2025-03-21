@@ -203,7 +203,7 @@ private:
 /// its internal procedures. This allows internal procedures to directly access
 /// and modify the state of the host procedure's variables.
 ///
-/// There are any number of possible implementations possible.
+/// There are any number of possible implementations.
 ///
 /// The implementation used here is to convert `boxproc` values to function
 /// pointers everywhere. If a `boxproc` value includes a frame pointer to the

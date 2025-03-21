@@ -229,7 +229,7 @@ class SparseIterateOpConverter : public OpConversionPattern<IterateOp> {
 public:
   using OpConversionPattern::OpConversionPattern;
   LogicalResult
-  matchAndRewrite(IterateOp op, OneToNOpAdaptor adaptor,
+matchAndRewrite(IterateOp op, OneToNOpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     if (!op.getCrdUsedLvls().empty())
       return rewriter.notifyMatchFailure(
@@ -253,7 +253,7 @@ public:
     if (failed(typeConverter->convertSignatureArgs(
             op.getBody()->getArgumentTypes(), signatureConversion)))
       return rewriter.notifyMatchFailure(
-          op, "failed to convert iterate region argurment types");
+          op, "failed to convert iterate region argument types");
 
     Block *block = rewriter.applySignatureConversion(
         op.getBody(), signatureConversion, getTypeConverter());

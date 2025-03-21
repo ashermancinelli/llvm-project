@@ -177,7 +177,7 @@ represented in either form) but block arguments have several advantages:
 1.  LLVM PHI nodes always have to be kept at the top of a block, and
     transformations frequently have to manually skip over them. This is defined
     away with BB arguments.
-1.  LLVM has a separate function Argument node. This is defined away with BB
+1.  LLVM has a separate function argument node. This is defined away with BB
     arguments, because the arguments to the entry block serve this purpose.
 1.  Blocks of PHI nodes in LLVM execute atomically, which is surprising and
     super confusing to compiler engineers and it is easy to introduce bugs with
