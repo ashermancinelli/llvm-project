@@ -111,9 +111,12 @@ inline bool isa_ref_type(mlir::Type t) {
                    fir::LLVMPointerType>(t);
 }
 
-inline bool isa_volatile_ref_type(mlir::Type t) {
+/// Is `t` a FIR dialect type that has been marked volatile?
+inline bool isa_volatile_type(mlir::Type t) {
   if (auto refTy = mlir::dyn_cast_or_null<fir::ReferenceType>(t))
     return refTy.isVolatile();
+  if (auto boxTy = mlir::dyn_cast_or_null<fir::BoxType>(t))
+    return boxTy.isVolatile();
   return false;
 }
 

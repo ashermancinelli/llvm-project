@@ -20,6 +20,7 @@
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/DialectImplementation.h"
+#include "mlir/Support/LLVM.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -74,6 +75,21 @@ bool verifySameLists(llvm::ArrayRef<RecordType::TypePair> a1,
                      llvm::ArrayRef<RecordType::TypePair> a2) {
   // FIXME: do we need to allow for any variance here?
   return a1 == a2;
+}
+
+static llvm::StringRef getVolatileKeyword() { return "volatile"; }
+
+static mlir::ParseResult parseOptionalCommaAndKeyword(mlir::AsmParser &parser,
+                                                      mlir::StringRef keyword,
+                                                      bool &parsedKeyword) {
+  if (!parser.parseOptionalComma()) {
+    if (parser.parseKeyword(keyword))
+      return mlir::failure();
+    parsedKeyword = true;
+    return mlir::success();
+  }
+  parsedKeyword = false;
+  return mlir::success();
 }
 
 RecordType verifyDerived(mlir::AsmParser &parser, RecordType derivedTy,
@@ -745,11 +761,28 @@ static bool cannotBePointerOrHeapElementType(mlir::Type eleTy) {
 
 llvm::LogicalResult
 fir::BoxType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
-                     mlir::Type eleTy) {
+                     mlir::Type eleTy, bool isVolatile) {
   if (mlir::isa<fir::BaseBoxType>(eleTy))
     return emitError() << "invalid element type\n";
   // TODO
   return mlir::success();
+}
+
+mlir::Type fir::BoxType::parse(mlir::AsmParser &parser) {
+  mlir::Type ty;
+  bool isVolatile;
+  if (parser.parseLess() || parser.parseType(ty) ||
+      parseOptionalCommaAndKeyword(parser, getVolatileKeyword(), isVolatile) ||
+      parser.parseGreater())
+    return {};
+  return get(ty, isVolatile);
+}
+
+void fir::BoxType::print(mlir::AsmPrinter &printer) const {
+  printer << '<' << getEleTy();
+  if (isVolatile())
+    printer << ", " << getVolatileKeyword();
+  printer << '>';
 }
 
 //===----------------------------------------------------------------------===//
@@ -1064,24 +1097,13 @@ unsigned fir::RecordType::getFieldIndex(llvm::StringRef ident) {
 
 // `ref` `<` type (`, volatile` $volatile^)? `>`
 mlir::Type fir::ReferenceType::parse(mlir::AsmParser &parser) {
-  if (parser.parseLess())
+  mlir::Type ty;
+  bool isVolatile;
+  if (parser.parseLess() || parser.parseType(ty) ||
+      parseOptionalCommaAndKeyword(parser, getVolatileKeyword(), isVolatile) ||
+      parser.parseGreater())
     return {};
-
-  mlir::Type eleTy;
-  if (parser.parseType(eleTy))
-    return {};
-
-  bool isVolatile = false;
-  if (!parser.parseOptionalComma()) {
-    if (parser.parseKeyword(getVolatileKeyword())) {
-      return {};
-    }
-    isVolatile = true;
-  }
-
-  if (parser.parseGreater())
-    return {};
-  return get(eleTy, isVolatile);
+  return get(ty, isVolatile);
 }
 
 void fir::ReferenceType::print(mlir::AsmPrinter &printer) const {

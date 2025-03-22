@@ -3,7 +3,7 @@ func.func @foo() {
   %true = arith.constant true
   %false = arith.constant false
   %0 = fir.alloca !fir.logical<4> {bindc_name = "a", uniq_name = "_QFEa"}
-  %1 = fir.convert %0 : (!fir.ref<!fir.logical<4>>) -> !fir.ref<!fir.logical<4>, volatile>
+  %1 = fir.volatile_cast %0 : (!fir.ref<!fir.logical<4>>) -> !fir.ref<!fir.logical<4>, volatile>
   %2:2 = hlfir.declare %1 {fortran_attrs = #fir.var_attrs<volatile>, uniq_name = "_QFEa"} : (!fir.ref<!fir.logical<4>, volatile>) -> (!fir.ref<!fir.logical<4>, volatile>, !fir.ref<!fir.logical<4>, volatile>)
   %3 = fir.alloca !fir.logical<4> {bindc_name = "b", uniq_name = "_QFEb"}
   %4:2 = hlfir.declare %3 {uniq_name = "_QFEb"} : (!fir.ref<!fir.logical<4>>) -> (!fir.ref<!fir.logical<4>>, !fir.ref<!fir.logical<4>>)

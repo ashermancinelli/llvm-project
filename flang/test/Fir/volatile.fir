@@ -5,7 +5,7 @@ func.func @foo() {
   %true = arith.constant true
   %false = arith.constant false
   %0 = fir.alloca !fir.logical<4> {bindc_name = "a", uniq_name = "_QFEa"}
-  %1 = fir.convert %0 : (!fir.ref<!fir.logical<4>>) -> !fir.ref<!fir.logical<4>, volatile>
+  %1 = fir.volatile_cast %0 : (!fir.ref<!fir.logical<4>>) -> !fir.ref<!fir.logical<4>, volatile>
   %2 = fir.alloca !fir.logical<4> {bindc_name = "b", uniq_name = "_QFEb"}
   %3 = fir.alloca i32 {bindc_name = "i", uniq_name = "_QFEi"}
   %4 = fir.convert %false : (i1) -> !fir.logical<4>
