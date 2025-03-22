@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "flang/Optimizer/Dialect/FIROps.h"
+#include "flang/Optimizer/Builder/BoxValue.h"
 #include "flang/Optimizer/Dialect/FIRAttr.h"
 #include "flang/Optimizer/Dialect/FIRDialect.h"
 #include "flang/Optimizer/Dialect/FIROpsSupport.h"
@@ -36,6 +37,24 @@
 namespace {
 #include "flang/Optimizer/Dialect/CanonicalizationPatterns.inc"
 } // namespace
+
+/// Volatile references are currently modeled as read and write effects
+/// to an unknown memory location. This is how the LLVM dialect models
+/// volatile memory accesses, but may be overly conservative. LLVM
+/// Language Reference only specifies that volatile memory accesses
+/// must not be reordered relative to other volatile memory accesses,
+/// so it would be more precise to use a separate memory resource for
+/// volatile memory accesses. Be conservative for now.
+static void addVolatileMemoryEffects(
+    mlir::Type type, llvm::SmallVectorImpl<mlir::SideEffects::EffectInstance<
+                         mlir::MemoryEffects::Effect>> &effects) {
+  if (fir::isa_volatile_type(type)) {
+    effects.emplace_back(mlir::MemoryEffects::Read::get(),
+                         fir::VolatileMemoryResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                         fir::VolatileMemoryResource::get());
+  }
+}
 
 static void propagateAttributes(mlir::Operation *fromOp,
                                 mlir::Operation *toOp) {
@@ -853,6 +872,16 @@ std::vector<mlir::Value> fir::ArrayLoadOp::getExtents() {
   return {};
 }
 
+void fir::ArrayLoadOp::getEffects(
+    llvm::SmallVectorImpl<
+        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(mlir::MemoryEffects::Read::get(),
+                       &getOperation()->getOpOperand(0),
+                       mlir::SideEffects::DefaultResource::get());
+  addVolatileMemoryEffects(getMemref().getType(), effects);
+}
+
 llvm::LogicalResult fir::ArrayLoadOp::verify() {
   auto eleTy = fir::dyn_cast_ptrOrBoxEleTy(getMemref().getType());
   auto arrTy = mlir::dyn_cast<fir::SequenceType>(eleTy);
@@ -933,6 +962,16 @@ llvm::LogicalResult fir::ArrayMergeStoreOp::verify() {
   if (!validTypeParams(getMemref().getType(), getTypeparams()))
     return emitOpError("invalid type parameters");
   return mlir::success();
+}
+
+void fir::ArrayMergeStoreOp::getEffects(
+    llvm::SmallVectorImpl<
+        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                       &getOperation()->getOpOperand(0),
+                       mlir::SideEffects::DefaultResource::get());
+  addVolatileMemoryEffects(getMemref().getType(), effects);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1323,6 +1362,29 @@ mlir::ParseResult fir::CmpcOp::parse(mlir::OpAsmParser &parser,
 }
 
 //===----------------------------------------------------------------------===//
+// VolatileCastOp
+//===----------------------------------------------------------------------===//
+
+llvm::LogicalResult fir::VolatileCastOp::verify() {
+  mlir::Type fromType = getValue().getType();
+  mlir::Type toType = getType();
+  bool sameBaseType =
+      (mlir::isa<fir::BoxType>(fromType) && mlir::isa<fir::BoxType>(toType)) ||
+      (mlir::isa<fir::ReferenceType>(fromType) &&
+       mlir::isa<fir::ReferenceType>(toType));
+  bool sameElementType = fir::dyn_cast_ptrOrBoxEleTy(fromType) ==
+                         fir::dyn_cast_ptrOrBoxEleTy(toType);
+  llvm::dbgs() << fromType << " / " << toType << "\n"
+               << sameBaseType << " " << sameElementType << "\n";
+  if (fromType == toType ||
+      fir::isa_volatile_type(fromType) == fir::isa_volatile_type(toType) ||
+      !sameBaseType || !sameElementType)
+    return emitOpError("types must be identical except for volatility ")
+           << fromType << " / " << toType;
+  return mlir::success();
+}
+
+//===----------------------------------------------------------------------===//
 // ConvertOp
 //===----------------------------------------------------------------------===//
 
@@ -1461,7 +1523,13 @@ bool fir::ConvertOp::canBeConverted(mlir::Type inType, mlir::Type outType) {
 }
 
 llvm::LogicalResult fir::ConvertOp::verify() {
-  if (canBeConverted(getValue().getType(), getType()))
+  mlir::Type inType = getValue().getType();
+  mlir::Type outType = getType();
+  if (fir::isa_volatile_type(inType) != fir::isa_volatile_type(outType))
+    return emitOpError("cannot convert between volatile and non-volatile "
+                       "types, use fir.volatile_cast instead ")
+           << inType << " / " << outType;
+  if (canBeConverted(inType, outType))
     return mlir::success();
   return emitOpError("invalid type conversion")
          << getValue().getType() << " / " << getType();
@@ -2597,6 +2665,16 @@ void fir::LoadOp::print(mlir::OpAsmPrinter &p) {
   p.printOperand(getMemref());
   p.printOptionalAttrDict(getOperation()->getAttrs(), {});
   p << " : " << getMemref().getType();
+}
+
+void fir::LoadOp::getEffects(
+    llvm::SmallVectorImpl<
+        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(mlir::MemoryEffects::Read::get(),
+                       &getOperation()->getOpOperand(0),
+                       mlir::SideEffects::DefaultResource::get());
+  addVolatileMemoryEffects(getMemref().getType(), effects);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3951,6 +4029,16 @@ void fir::StoreOp::build(mlir::OpBuilder &builder, mlir::OperationState &result,
   build(builder, result, value, memref, {});
 }
 
+void fir::StoreOp::getEffects(
+    llvm::SmallVectorImpl<
+        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                       &getOperation()->getOpOperand(1),
+                       mlir::SideEffects::DefaultResource::get());
+  addVolatileMemoryEffects(getMemref().getType(), effects);
+}
+
 //===----------------------------------------------------------------------===//
 // CopyOp
 //===----------------------------------------------------------------------===//
@@ -3969,6 +4057,20 @@ llvm::LogicalResult fir::CopyOp::verify() {
   if (sourceType != destinationType)
     return emitOpError("source and destination must have the same value type");
   return mlir::success();
+}
+
+void fir::CopyOp::getEffects(
+    llvm::SmallVectorImpl<
+        mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(mlir::MemoryEffects::Read::get(),
+                       &getOperation()->getOpOperand(0),
+                       mlir::SideEffects::DefaultResource::get());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(),
+                       &getOperation()->getOpOperand(1),
+                       mlir::SideEffects::DefaultResource::get());
+  addVolatileMemoryEffects(getDestination().getType(), effects);
+  addVolatileMemoryEffects(getSource().getType(), effects);
 }
 
 //===----------------------------------------------------------------------===//

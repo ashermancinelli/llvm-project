@@ -89,7 +89,12 @@ public:
       return fir::getBase(builder.createBox(loc, rhsExv));
     };
 
-    if (assignOp.isAllocatableAssignment()) {
+    if (fir::isa_volatile_type(lhs.getType()) ||
+        fir::isa_volatile_type(rhs.getType())) {
+      fir::factory::genScalarAssignment(builder, loc, lhsExv, rhsExv,
+                                        /*needFinalization=*/false,
+                                        assignOp.isTemporaryLHS());
+    } else if (assignOp.isAllocatableAssignment()) {
       // Whole allocatable assignment: use the runtime to deal with the
       // reallocation.
       mlir::Value from = emboxRHS(rhsExv);
@@ -419,7 +424,7 @@ class DesignateOpConversion
       i = i + (isTriplet ? 3 : 1);
     }
     mlir::Type originalDesignateType = designate.getResult().getType();
-    const bool isVolatile = fir::isa_volatile_ref_type(originalDesignateType);
+    const bool isVolatile = fir::isa_volatile_type(originalDesignateType);
     mlir::Type arrayCoorType = fir::ReferenceType::get(baseEleTy, isVolatile);
     base = builder.create<fir::ArrayCoorOp>(
         loc, arrayCoorType, base, shape,
@@ -443,7 +448,7 @@ public:
       TODO(loc, "hlfir::designate load of pointer or allocatable");
 
     mlir::Type designateResultType = designate.getResult().getType();
-    const bool isVolatile = fir::isa_volatile_ref_type(designateResultType);
+    const bool isVolatile = fir::isa_volatile_type(designateResultType);
     llvm::SmallVector<mlir::Value> firBaseTypeParameters;
     auto [base, shape] = hlfir::genVariableFirBaseShapeAndParams(
         loc, builder, baseEntity, firBaseTypeParameters);

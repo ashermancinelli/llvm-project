@@ -689,6 +689,20 @@ struct CmpcOpConversion : public fir::FIROpConversion<fir::CmpcOp> {
   }
 };
 
+/// fir.volatile_cast is only useful at the fir level. Once we lower to LLVM,
+/// volatility is described by setting volatile attributes on the LLVM ops.
+struct VolatileCastOpConversion
+    : public fir::FIROpConversion<fir::VolatileCastOp> {
+  using FIROpConversion::FIROpConversion;
+
+  llvm::LogicalResult
+  matchAndRewrite(fir::VolatileCastOp volatileCast, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(volatileCast, adaptor.getOperands()[0]);
+    return mlir::success();
+  }
+};
+
 /// convert value of from-type to value of to-type
 struct ConvertOpConversion : public fir::FIROpConversion<fir::ConvertOp> {
   using FIROpConversion::FIROpConversion;
@@ -3224,8 +3238,7 @@ struct LoadOpConversion : public fir::FIROpConversion<fir::LoadOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
 
     mlir::Type llvmLoadTy = convertObjectType(load.getType());
-    const bool isVolatile =
-        fir::isa_volatile_ref_type(load.getMemref().getType());
+    const bool isVolatile = fir::isa_volatile_type(load.getMemref().getType());
     if (auto boxTy = mlir::dyn_cast<fir::BaseBoxType>(load.getType())) {
       // fir.box is a special case because it is considered an ssa value in
       // fir, but it is lowered as a pointer to a descriptor. So
@@ -3263,10 +3276,10 @@ struct LoadOpConversion : public fir::FIROpConversion<fir::LoadOp> {
         attachTBAATag(memcpy, boxTy, boxTy, nullptr);
       rewriter.replaceOp(load, newBoxStorage);
     } else {
-      // TODO: are we losing any attributes from the load op?
-      auto memref = adaptor.getOperands()[0];
-      auto loadOp = rewriter.create<mlir::LLVM::LoadOp>(
-          load.getLoc(), llvmLoadTy, memref, /*alignment=*/0, isVolatile);
+      mlir::LLVM::LoadOp loadOp = rewriter.create<mlir::LLVM::LoadOp>(
+          load.getLoc(), llvmLoadTy, adaptor.getOperands(), load->getAttrs());
+      if (isVolatile)
+        loadOp.setVolatile_Attr(rewriter.getUnitAttr());
       if (std::optional<mlir::ArrayAttr> optionalTag = load.getTbaa())
         loadOp.setTBAATags(*optionalTag);
       else
@@ -3544,8 +3557,7 @@ struct StoreOpConversion : public fir::FIROpConversion<fir::StoreOp> {
     mlir::Value llvmValue = adaptor.getValue();
     mlir::Value llvmMemref = adaptor.getMemref();
     mlir::LLVM::AliasAnalysisOpInterface newOp;
-    const bool isVolatile =
-        fir::isa_volatile_ref_type(store.getMemref().getType());
+    const bool isVolatile = fir::isa_volatile_type(store.getMemref().getType());
     if (auto boxTy = mlir::dyn_cast<fir::BaseBoxType>(storeTy)) {
       mlir::Type llvmBoxTy = lowerTy().convertBoxTypeAsStruct(boxTy);
       // Always use memcpy because LLVM is not as effective at optimizing
@@ -4200,21 +4212,22 @@ void fir::populateFIRToLLVMConversionPatterns(
       BoxIsAllocOpConversion, BoxIsArrayOpConversion, BoxIsPtrOpConversion,
       BoxOffsetOpConversion, BoxProcHostOpConversion, BoxRankOpConversion,
       BoxTypeCodeOpConversion, BoxTypeDescOpConversion, CallOpConversion,
-      CmpcOpConversion, ConvertOpConversion, CoordinateOpConversion,
-      CopyOpConversion, DTEntryOpConversion, DeclareOpConversion,
-      DivcOpConversion, EmboxOpConversion, EmboxCharOpConversion,
-      EmboxProcOpConversion, ExtractValueOpConversion, FieldIndexOpConversion,
-      FirEndOpConversion, FreeMemOpConversion, GlobalLenOpConversion,
-      GlobalOpConversion, InsertOnRangeOpConversion, IsPresentOpConversion,
-      LenParamIndexOpConversion, LoadOpConversion, MulcOpConversion,
-      NegcOpConversion, NoReassocOpConversion, SelectCaseOpConversion,
-      SelectOpConversion, SelectRankOpConversion, SelectTypeOpConversion,
-      ShapeOpConversion, ShapeShiftOpConversion, ShiftOpConversion,
-      SliceOpConversion, StoreOpConversion, StringLitOpConversion,
-      SubcOpConversion, TypeDescOpConversion, TypeInfoOpConversion,
-      UnboxCharOpConversion, UnboxProcOpConversion, UndefOpConversion,
-      UnreachableOpConversion, XArrayCoorOpConversion, XEmboxOpConversion,
-      XReboxOpConversion, ZeroOpConversion>(converter, options);
+      CmpcOpConversion, VolatileCastOpConversion, ConvertOpConversion,
+      CoordinateOpConversion, CopyOpConversion, DTEntryOpConversion,
+      DeclareOpConversion, DivcOpConversion, EmboxOpConversion,
+      EmboxCharOpConversion, EmboxProcOpConversion, ExtractValueOpConversion,
+      FieldIndexOpConversion, FirEndOpConversion, FreeMemOpConversion,
+      GlobalLenOpConversion, GlobalOpConversion, InsertOnRangeOpConversion,
+      IsPresentOpConversion, LenParamIndexOpConversion, LoadOpConversion,
+      MulcOpConversion, NegcOpConversion, NoReassocOpConversion,
+      SelectCaseOpConversion, SelectOpConversion, SelectRankOpConversion,
+      SelectTypeOpConversion, ShapeOpConversion, ShapeShiftOpConversion,
+      ShiftOpConversion, SliceOpConversion, StoreOpConversion,
+      StringLitOpConversion, SubcOpConversion, TypeDescOpConversion,
+      TypeInfoOpConversion, UnboxCharOpConversion, UnboxProcOpConversion,
+      UndefOpConversion, UnreachableOpConversion, XArrayCoorOpConversion,
+      XEmboxOpConversion, XReboxOpConversion, ZeroOpConversion>(converter,
+                                                                options);
 
   // Patterns that are populated without a type converter do not trigger
   // target materializations for the operands of the root op.

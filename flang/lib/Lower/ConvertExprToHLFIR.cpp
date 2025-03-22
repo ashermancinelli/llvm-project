@@ -229,7 +229,7 @@ private:
     // Check if the base type is volatile
     if (partInfo.base.has_value()) {
       mlir::Type baseType = partInfo.base.value().getType();
-      isVolatile = fir::isa_volatile_ref_type(baseType);
+      isVolatile = fir::isa_volatile_type(baseType);
     }
 
     auto isVolatileSymbol = [](const Fortran::semantics::Symbol &symbol) {
@@ -242,15 +242,7 @@ private:
                                  Fortran::evaluate::SymbolRef>) {
       if (isVolatileSymbol(designatorNode.get()))
         isVolatile = true;
-    } else if constexpr (std::is_same_v<std::decay_t<T>,
-                                        Fortran::evaluate::Component>) {
-      if (isVolatileSymbol(designatorNode.GetLastSymbol()))
-        isVolatile = true;
     }
-
-    // If it's a reference to a ref, account for it
-    if (auto refTy = mlir::dyn_cast<fir::ReferenceType>(resultValueType))
-      resultValueType = refTy.getEleTy();
 
     // Other designators can be handled as raw addresses.
     return fir::ReferenceType::get(resultValueType, isVolatile);
@@ -1844,7 +1836,7 @@ private:
       auto &expr = std::get<const Fortran::lower::SomeExpr &>(iter);
       auto &baseOp = std::get<hlfir::EntityWithAttributes>(iter);
       std::string name = converter.getRecordTypeFieldName(sym);
-      const bool isVolatile = fir::isa_volatile_ref_type(baseOp.getType());
+      const bool isVolatile = fir::isa_volatile_type(baseOp.getType());
 
       // Generate DesignateOp for the component.
       // The designator's result type is just a reference to the component type,

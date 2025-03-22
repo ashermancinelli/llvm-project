@@ -1127,7 +1127,7 @@ public:
       mlir::Type resultElemTy =
           hlfir::getFortranElementType(resultArr.getType());
       mlir::Type returnRefTy = builder.getRefType(
-          resultElemTy, fir::isa_volatile_ref_type(flagRef.getType()));
+          resultElemTy, fir::isa_volatile_type(flagRef.getType()));
       mlir::IndexType idxTy = builder.getIndexType();
 
       for (unsigned int i = 0; i < rank; ++i) {
@@ -1155,7 +1155,7 @@ public:
                         const mlir::Type &resultElemType, mlir::Value resultArr,
                         mlir::Value index) {
       mlir::Type resultRefTy = builder.getRefType(
-          resultElemType, fir::isa_volatile_ref_type(resultArr.getType()));
+          resultElemType, fir::isa_volatile_type(resultArr.getType()));
       mlir::Value oneIdx =
           builder.createIntegerConstant(loc, builder.getIndexType(), 1);
       index = builder.create<mlir::arith::AddIOp>(loc, index, oneIdx);
@@ -1164,7 +1164,7 @@ public:
     };
 
     // Initialize the result
-    const bool isVolatile = fir::isa_volatile_ref_type(resultArr.getType());
+    const bool isVolatile = fir::isa_volatile_type(resultArr.getType());
     mlir::Type resultElemTy = hlfir::getFortranElementType(resultArr.getType());
     mlir::Type resultRefTy = builder.getRefType(resultElemTy, isVolatile);
     mlir::Value returnValue =

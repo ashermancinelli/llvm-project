@@ -61,6 +61,12 @@ getIntrinsicEffects(mlir::Operation *self,
   // }
   for (mlir::OpOperand &operand : self->getOpOperands()) {
     mlir::Type opTy = operand.get().getType();
+    if (fir::isa_volatile_type(opTy)) {
+      effects.emplace_back(mlir::MemoryEffects::Read::get(), &operand,
+                           mlir::SideEffects::DefaultResource::get());
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), &operand,
+                           mlir::SideEffects::DefaultResource::get());
+    }
     if (fir::isa_ref_type(opTy) || fir::isa_box_type(opTy))
       effects.emplace_back(mlir::MemoryEffects::Read::get(), &operand,
                            mlir::SideEffects::DefaultResource::get());
@@ -164,6 +170,11 @@ void hlfir::AssignOp::getEffects(
     }
   }
 
+  if (fir::isa_volatile_type(lhsType) || fir::isa_volatile_type(rhsType)) {
+    effects.emplace_back(mlir::MemoryEffects::Read::get());
+    effects.emplace_back(mlir::MemoryEffects::Write::get());
+  }
+
   if (getRealloc()) {
     // Reallocation of the data cannot be precisely described by this API.
     effects.emplace_back(mlir::MemoryEffects::Free::get(),
@@ -219,7 +230,8 @@ void hlfir::DeclareOp::build(mlir::OpBuilder &builder,
                          fir::FortranVariableFlagsEnum::fortran_volatile)) {
     auto refType = mlir::cast<fir::ReferenceType>(inputType);
     inputType = fir::ReferenceType::get(refType.getEleTy(), true);
-    memref = builder.create<fir::ConvertOp>(memref.getLoc(), inputType, memref);
+    memref =
+        builder.create<fir::VolatileCastOp>(memref.getLoc(), inputType, memref);
   }
   mlir::Type hlfirVariableType =
       getHLFIRVariableType(inputType, hasExplicitLbs);
