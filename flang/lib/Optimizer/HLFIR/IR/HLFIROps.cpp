@@ -170,10 +170,7 @@ void hlfir::AssignOp::getEffects(
     }
   }
 
-  if (fir::isa_volatile_type(lhsType) || fir::isa_volatile_type(rhsType)) {
-    effects.emplace_back(mlir::MemoryEffects::Read::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get());
-  }
+  fir::addVolatileMemoryEffects({lhsType, rhsType}, effects);
 
   if (getRealloc()) {
     // Reallocation of the data cannot be precisely described by this API.
