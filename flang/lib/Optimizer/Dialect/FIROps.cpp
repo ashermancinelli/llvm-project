@@ -30,6 +30,7 @@
 #include "mlir/IR/Matchers.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/TypeRange.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -37,24 +38,6 @@
 namespace {
 #include "flang/Optimizer/Dialect/CanonicalizationPatterns.inc"
 } // namespace
-
-/// Volatile references are currently modeled as read and write effects
-/// to an unknown memory location. This is how the LLVM dialect models
-/// volatile memory accesses, but may be overly conservative. LLVM
-/// Language Reference only specifies that volatile memory accesses
-/// must not be reordered relative to other volatile memory accesses,
-/// so it would be more precise to use a separate memory resource for
-/// volatile memory accesses. Be conservative for now.
-static void addVolatileMemoryEffects(
-    mlir::Type type, llvm::SmallVectorImpl<mlir::SideEffects::EffectInstance<
-                         mlir::MemoryEffects::Effect>> &effects) {
-  if (fir::isa_volatile_type(type)) {
-    effects.emplace_back(mlir::MemoryEffects::Read::get(),
-                         fir::VolatileMemoryResource::get());
-    effects.emplace_back(mlir::MemoryEffects::Write::get(),
-                         fir::VolatileMemoryResource::get());
-  }
-}
 
 static void propagateAttributes(mlir::Operation *fromOp,
                                 mlir::Operation *toOp) {
@@ -879,7 +862,7 @@ void fir::ArrayLoadOp::getEffects(
   effects.emplace_back(mlir::MemoryEffects::Read::get(),
                        &getOperation()->getOpOperand(0),
                        mlir::SideEffects::DefaultResource::get());
-  addVolatileMemoryEffects(getMemref().getType(), effects);
+  addVolatileMemoryEffects({getMemref().getType()}, effects);
 }
 
 llvm::LogicalResult fir::ArrayLoadOp::verify() {
@@ -971,7 +954,7 @@ void fir::ArrayMergeStoreOp::getEffects(
   effects.emplace_back(mlir::MemoryEffects::Write::get(),
                        &getOperation()->getOpOperand(0),
                        mlir::SideEffects::DefaultResource::get());
-  addVolatileMemoryEffects(getMemref().getType(), effects);
+  addVolatileMemoryEffects({getMemref().getType()}, effects);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1855,6 +1838,9 @@ llvm::LogicalResult fir::EmboxOp::verify() {
     return emitOpError("slice must not be provided for a scalar");
   if (getSourceBox() && !mlir::isa<fir::ClassType>(getResult().getType()))
     return emitOpError("source_box must be used with fir.class result type");
+  if (fir::isa_volatile_type(getMemref().getType()) !=
+      fir::isa_volatile_type(getResult().getType()))
+    return emitOpError("input and output types must have the same volatility");
   return mlir::success();
 }
 
@@ -2674,7 +2660,7 @@ void fir::LoadOp::getEffects(
   effects.emplace_back(mlir::MemoryEffects::Read::get(),
                        &getOperation()->getOpOperand(0),
                        mlir::SideEffects::DefaultResource::get());
-  addVolatileMemoryEffects(getMemref().getType(), effects);
+  addVolatileMemoryEffects({getMemref().getType()}, effects);
 }
 
 //===----------------------------------------------------------------------===//
@@ -4036,7 +4022,7 @@ void fir::StoreOp::getEffects(
   effects.emplace_back(mlir::MemoryEffects::Write::get(),
                        &getOperation()->getOpOperand(1),
                        mlir::SideEffects::DefaultResource::get());
-  addVolatileMemoryEffects(getMemref().getType(), effects);
+  addVolatileMemoryEffects({getMemref().getType()}, effects);
 }
 
 //===----------------------------------------------------------------------===//
@@ -4069,8 +4055,8 @@ void fir::CopyOp::getEffects(
   effects.emplace_back(mlir::MemoryEffects::Write::get(),
                        &getOperation()->getOpOperand(1),
                        mlir::SideEffects::DefaultResource::get());
-  addVolatileMemoryEffects(getDestination().getType(), effects);
-  addVolatileMemoryEffects(getSource().getType(), effects);
+  addVolatileMemoryEffects({getDestination().getType(), getSource().getType()},
+                           effects);
 }
 
 //===----------------------------------------------------------------------===//
