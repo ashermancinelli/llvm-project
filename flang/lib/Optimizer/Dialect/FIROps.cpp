@@ -1357,14 +1357,18 @@ llvm::LogicalResult fir::VolatileCastOp::verify() {
        mlir::isa<fir::ReferenceType>(toType));
   bool sameElementType = fir::dyn_cast_ptrOrBoxEleTy(fromType) ==
                          fir::dyn_cast_ptrOrBoxEleTy(toType);
-  llvm::dbgs() << fromType << " / " << toType << "\n"
-               << sameBaseType << " " << sameElementType << "\n";
   if (fromType == toType ||
       fir::isa_volatile_type(fromType) == fir::isa_volatile_type(toType) ||
       !sameBaseType || !sameElementType)
     return emitOpError("types must be identical except for volatility ")
            << fromType << " / " << toType;
   return mlir::success();
+}
+
+mlir::OpFoldResult fir::VolatileCastOp::fold(FoldAdaptor adaptor) {
+  if (getValue().getType() == getType())
+    return getValue();
+  return {};
 }
 
 //===----------------------------------------------------------------------===//
@@ -1838,9 +1842,9 @@ llvm::LogicalResult fir::EmboxOp::verify() {
     return emitOpError("slice must not be provided for a scalar");
   if (getSourceBox() && !mlir::isa<fir::ClassType>(getResult().getType()))
     return emitOpError("source_box must be used with fir.class result type");
-  if (fir::isa_volatile_type(getMemref().getType()) !=
-      fir::isa_volatile_type(getResult().getType()))
-    return emitOpError("input and output types must have the same volatility");
+  // if (fir::isa_volatile_type(getMemref().getType()) !=
+  //     fir::isa_volatile_type(getResult().getType()))
+  //   return emitOpError("input and output types must have the same volatility");
   return mlir::success();
 }
 

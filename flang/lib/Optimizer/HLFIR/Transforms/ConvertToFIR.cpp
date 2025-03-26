@@ -89,12 +89,7 @@ public:
       return fir::getBase(builder.createBox(loc, rhsExv));
     };
 
-    if (fir::isa_volatile_type(lhs.getType()) ||
-        fir::isa_volatile_type(rhs.getType())) {
-      fir::factory::genScalarAssignment(builder, loc, lhsExv, rhsExv,
-                                        /*needFinalization=*/false,
-                                        assignOp.isTemporaryLHS());
-    } else if (assignOp.isAllocatableAssignment()) {
+    if (assignOp.isAllocatableAssignment()) {
       // Whole allocatable assignment: use the runtime to deal with the
       // reallocation.
       mlir::Value from = emboxRHS(rhsExv);

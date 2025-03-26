@@ -365,7 +365,7 @@ def fir_ReferenceType : FIR_Type<"Reference", "ref"> {
     References can be volatile. Any ops taking an operand of a volatile
     reference must set their memory effects appropriately. Accesses of
     volatile references are currently modeled as read and write effects
-    to an unknown memory location.
+    to a specific memory resource.
   }];
 
   let parameters = (ins
@@ -386,8 +386,6 @@ def fir_ReferenceType : FIR_Type<"Reference", "ref"> {
   }];
 
   let genVerifyDecl = 1;
-  // let assemblyFormat = "`<` $eleTy (`,` `volatile` $isVolatile^)? `>`";
-  // let assemblyFormat = "`<` $eleTy custom<IsVolatile>($isVolatile)`>`";
   let hasCustomAssemblyFormat = 1;
 }
 

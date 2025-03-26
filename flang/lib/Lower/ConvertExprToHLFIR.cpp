@@ -232,15 +232,11 @@ private:
       isVolatile = fir::isa_volatile_type(baseType);
     }
 
-    auto isVolatileSymbol = [](const Fortran::semantics::Symbol &symbol) {
-      return symbol.GetUltimate().attrs().test(
-          Fortran::semantics::Attr::VOLATILE);
-    };
-
     // Check if this should be a volatile reference
     if constexpr (std::is_same_v<std::decay_t<T>,
                                  Fortran::evaluate::SymbolRef>) {
-      if (isVolatileSymbol(designatorNode.get()))
+      if (designatorNode.get().GetUltimate().attrs().test(
+              Fortran::semantics::Attr::VOLATILE))
         isVolatile = true;
     }
 
@@ -436,16 +432,15 @@ private:
         .Case<fir::SequenceType>([&](fir::SequenceType seqTy) -> mlir::Type {
           return fir::SequenceType::get(seqTy.getShape(), newEleTy);
         })
-        // TODO: handle volatility for other types
-        .Case<fir::PointerType, fir::HeapType, fir::BoxType, fir::ClassType>(
+        .Case<fir::PointerType, fir::HeapType, fir::ClassType>(
             [&](auto t) -> mlir::Type {
               using FIRT = decltype(t);
               return FIRT::get(changeElementType(t.getEleTy(), newEleTy));
             })
-        .Case<fir::ReferenceType>([&](fir::ReferenceType refTy) -> mlir::Type {
-          return fir::ReferenceType::get(
-              changeElementType(refTy.getEleTy(), newEleTy),
-              refTy.isVolatile());
+        .Case<fir::ReferenceType, fir::BoxType>([&](auto t) -> mlir::Type {
+          using FIRT = decltype(t);
+          return FIRT::get(changeElementType(t.getEleTy(), newEleTy),
+                           t.isVolatile());
         })
         .Default([newEleTy](mlir::Type t) -> mlir::Type { return newEleTy; });
   }

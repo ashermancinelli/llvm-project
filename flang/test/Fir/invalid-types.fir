@@ -157,8 +157,14 @@ func.func private @oth3() -> !fir.vector<10:>
 // expected-error@+1 {{invalid element type}}
 func.func private @upe() -> !fir.class<!fir.box<i32>>
 
+// -----
+
 // TODO: why are source locations lost on the error message?
 // the error message is printed but without a proper source location.
-// -- ---
-// expected-error skipme @+1 {{invalid element type}}
+// expected-error <skipme> @+1 {{invalid element type}}
 // func.func private @upe() -> !fir.box<!fir.class<none>>
+
+// -----
+
+// expected-error@+1 {{invalid element type}}
+func.func private @upe() -> !fir.class<!fir.box<i32>>

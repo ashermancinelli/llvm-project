@@ -302,7 +302,7 @@ def fir_LoadOp : fir_OneResultOp<"load", [FirAliasTagOpInterface, DeclareOpInter
     or null.
   }];
 
-  let arguments = (ins Arg<AnyReferenceLike, "">:$memref,
+  let arguments = (ins AnyReferenceLike:$memref,
                   OptionalAttr<LLVM_TBAATagArrayAttr>:$tbaa);
 
   let builders = [OpBuilder<(ins "mlir::Value":$refVal)>,
@@ -336,7 +336,7 @@ def fir_StoreOp : fir_Op<"store", [FirAliasTagOpInterface,
   }];
 
   let arguments = (ins AnyType:$value,
-                   Arg<AnyReferenceLike, "">:$memref,
+                   AnyReferenceLike:$memref,
                    OptionalAttr<LLVM_TBAATagArrayAttr>:$tbaa);
 
   let builders = [OpBuilder<(ins "mlir::Value":$value, "mlir::Value":$memref)>];
@@ -2765,6 +2765,7 @@ def fir_VolatileCastOp : fir_SimpleOneResultOp<"volatile_cast", [NoMemoryEffect]
     $value attr-dict `:` functional-type($value, results)
   }];
   let hasVerifier = 1;
+  let hasFolder = 1;
 }
 
 def fir_ConvertOp : fir_SimpleOneResultOp<"convert", [NoMemoryEffect]> {
