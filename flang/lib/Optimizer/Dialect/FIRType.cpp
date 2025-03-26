@@ -1319,6 +1319,19 @@ bool fir::hasAbstractResult(mlir::FunctionType ty) {
       resultType);
 }
 
+mlir::Type fir::updateTypeWithVolatility(mlir::Type type, bool isVolatile) {
+  if (fir::isa_volatile_type(type) == isVolatile)
+    return type;
+  return mlir::TypeSwitch<mlir::Type, mlir::Type>(type)
+      .Case<fir::BoxType, fir::ReferenceType>([&](auto ty) -> mlir::Type {
+        using TYPE = decltype(ty);
+        return TYPE::get(ty.getEleTy(), isVolatile);
+      })
+      .Default([&](mlir::Type t) -> mlir::Type {
+        return t;
+      });
+}
+
 /// Convert llvm::Type::TypeID to mlir::Type. \p kind is provided for error
 /// messages only.
 mlir::Type fir::fromRealTypeID(mlir::MLIRContext *context,

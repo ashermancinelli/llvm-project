@@ -386,8 +386,6 @@ def fir_ReferenceType : FIR_Type<"Reference", "ref"> {
   }];
 
   let genVerifyDecl = 1;
-  // let assemblyFormat = "`<` $eleTy (`,` `volatile` $isVolatile^)? `>`";
-  // let assemblyFormat = "`<` $eleTy custom<IsVolatile>($isVolatile)`>`";
   let hasCustomAssemblyFormat = 1;
 }
 
