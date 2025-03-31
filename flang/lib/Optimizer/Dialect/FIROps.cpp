@@ -1844,7 +1844,8 @@ llvm::LogicalResult fir::EmboxOp::verify() {
     return emitOpError("source_box must be used with fir.class result type");
   // if (fir::isa_volatile_type(getMemref().getType()) !=
   //     fir::isa_volatile_type(getResult().getType()))
-  //   return emitOpError("input and output types must have the same volatility");
+  //   return emitOpError("input and output types must have the same
+  //   volatility");
   return mlir::success();
 }
 

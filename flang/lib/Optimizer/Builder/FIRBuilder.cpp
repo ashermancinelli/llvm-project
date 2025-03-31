@@ -581,7 +581,8 @@ mlir::Value fir::FirOpBuilder::createConvertWithVolatileCast(mlir::Location loc,
                                                              mlir::Type toTy,
                                                              mlir::Value val) {
   if (fir::isa_volatile_type(val.getType()) != fir::isa_volatile_type(toTy)) {
-    mlir::Type volatileAdjustedType = fir::updateTypeWithVolatility(val.getType(), fir::isa_volatile_type(toTy));
+    mlir::Type volatileAdjustedType = fir::updateTypeWithVolatility(
+        val.getType(), fir::isa_volatile_type(toTy));
     val = create<fir::VolatileCastOp>(loc, volatileAdjustedType, val);
   }
   return createConvert(loc, toTy, val);

@@ -1327,9 +1327,7 @@ mlir::Type fir::updateTypeWithVolatility(mlir::Type type, bool isVolatile) {
         using TYPE = decltype(ty);
         return TYPE::get(ty.getEleTy(), isVolatile);
       })
-      .Default([&](mlir::Type t) -> mlir::Type {
-        return t;
-      });
+      .Default([&](mlir::Type t) -> mlir::Type { return t; });
 }
 
 /// Convert llvm::Type::TypeID to mlir::Type. \p kind is provided for error
