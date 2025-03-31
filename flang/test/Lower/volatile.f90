@@ -39,7 +39,7 @@ end program
 ! CHECK:           %[[VAL_25:.*]]:3 = hlfir.associate %{{.+}} {adapt.valuebyref} : (i32) -> (!fir.ref<i32>, !fir.ref<i32>, i1)
 ! CHECK:           fir.call @_QFPdeclared_volatile_in_this_scope(%[[VAL_24]], %[[VAL_25]]#0) fastmath<contract> : (!fir.ref<!fir.array<?xi32>>, !fir.ref<i32>) -> ()
 ! CHECK:           hlfir.end_associate %[[VAL_25]]#1, %[[VAL_25]]#2 : !fir.ref<i32>, i1
-! CHECK:           %[[VAL_26:.*]] = fir.address_of(@_QQclX6951b66b308fd310127f64e03dcd1051) : !fir.ref<!fir.char<1,78>>
+! CHECK:           %[[VAL_26:.*]] = fir.address_of(
 ! CHECK:           %[[VAL_27:.*]] = fir.convert %[[VAL_26]] : (!fir.ref<!fir.char<1,78>>) -> !fir.ref<i8>
 ! CHECK:           %[[VAL_28:.*]] = fir.call @_FortranAioBeginExternalListOutput(
 ! CHECK:           %[[VAL_29:.*]] = fir.embox %{{.+}} : (!fir.ref<!fir.array<10xi32>, volatile>, !fir.shape<1>) -> !fir.box<!fir.array<10xi32>, volatile>
