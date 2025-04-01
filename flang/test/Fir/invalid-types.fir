@@ -104,6 +104,11 @@ func.func private @mem3() -> !fir.ref<>
 
 // -----
 
+// expected-error@+1 {{expected non-function type}}
+func.func private @mem3() -> !fir.ref<, volatile>
+
+// -----
+
 // expected-error@+1 {{expected ':'}}
 func.func private @arr1() -> !fir.array<*>
 
@@ -161,6 +166,11 @@ func.func private @upe() -> !fir.class<!fir.box<i32>>
 
 // expected-error@+1 {{invalid element type}}
 func.func private @upe() -> !fir.box<!fir.class<none>>
+
+// -----
+
+// expected-error@+1 {{invalid element type}}
+func.func private @upe() -> !fir.box<!fir.class<none>, volatile>
 
 // -----
 
