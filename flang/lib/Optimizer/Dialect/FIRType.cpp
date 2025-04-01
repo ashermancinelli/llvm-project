@@ -136,7 +136,8 @@ mlir::Type fir::parseFirType(FIROpsDialect *dialect,
   auto parseResult = generatedTypeParser(parser, &typeTag, genType);
   if (parseResult.has_value())
     return genType;
-  parser.emitError(parser.getCurrentLocation(), "unknown fir type: ") << typeTag;
+  parser.emitError(parser.getCurrentLocation(), "unknown fir type: ")
+      << typeTag;
   return {};
 }
 
@@ -1105,7 +1106,8 @@ mlir::Type fir::ReferenceType::parse(mlir::AsmParser &parser) {
       parseOptionalCommaAndKeyword(parser, getVolatileKeyword(), isVolatile) ||
       parser.parseGreater())
     return {};
-  return parser.getChecked<ReferenceType>(loc, parser.getContext(), ty, isVolatile);
+  return parser.getChecked<ReferenceType>(loc, parser.getContext(), ty,
+                                          isVolatile);
 }
 
 void fir::ReferenceType::print(mlir::AsmPrinter &printer) const {
