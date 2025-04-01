@@ -136,7 +136,7 @@ mlir::Type fir::parseFirType(FIROpsDialect *dialect,
   auto parseResult = generatedTypeParser(parser, &typeTag, genType);
   if (parseResult.has_value())
     return genType;
-  parser.emitError(parser.getCurrentLocation(), "unknown fir type: ")
+  parser.emitError(parser.getNameLoc(), "unknown fir type: ")
       << typeTag;
   return {};
 }
@@ -680,9 +680,9 @@ mlir::Type changeElementType(mlir::Type type, mlir::Type newElementType,
       .Case<fir::BoxType>([&](fir::BoxType t) -> mlir::Type {
         mlir::Type newInnerType =
             changeElementType(t.getEleTy(), newElementType, false);
+        // TODO: volatility on class types
         if (turnBoxIntoClass)
-          return fir::ClassType::get(
-              newInnerType); // TODO: volatility on class types
+          return fir::ClassType::get(newInnerType);
         return fir::BoxType::get(newInnerType, t.isVolatile());
       })
       .Default([&](mlir::Type t) -> mlir::Type {
