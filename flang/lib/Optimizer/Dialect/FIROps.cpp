@@ -1840,10 +1840,10 @@ llvm::LogicalResult fir::EmboxOp::verify() {
     return emitOpError("slice must not be provided for a scalar");
   if (getSourceBox() && !mlir::isa<fir::ClassType>(getResult().getType()))
     return emitOpError("source_box must be used with fir.class result type");
-  // if (fir::isa_volatile_type(getMemref().getType()) !=
-  //     fir::isa_volatile_type(getResult().getType()))
-  //   return emitOpError("input and output types must have the same
-  //   volatility");
+  if (fir::isa_volatile_type(getMemref().getType()) !=
+      fir::isa_volatile_type(getResult().getType()))
+    return emitOpError("cannot convert between volatile and non-volatile "
+                       "types, use fir.volatile_cast instead");
   return mlir::success();
 }
 

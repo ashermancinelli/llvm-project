@@ -90,7 +90,7 @@ def fir_BoxType : FIR_Type<"Box", "box", [], "BaseBoxType"> {
 
   let extraClassDeclaration = [{
     mlir::Type getElementType() const { return getEleTy(); }
-    bool isVolatile() const { return (bool)getIsVolatile(); }
+    bool isVolatile() const { return getIsVolatile(); }
   }];
 
   let genVerifyDecl = 1;

@@ -681,8 +681,9 @@ mlir::Type changeElementType(mlir::Type type, mlir::Type newElementType,
         mlir::Type newInnerType =
             changeElementType(t.getEleTy(), newElementType, false);
         if (turnBoxIntoClass)
-          return fir::ClassType::get(newInnerType);
-        return fir::BoxType::get(newInnerType);
+          return fir::ClassType::get(
+              newInnerType); // TODO: volatility on class types
+        return fir::BoxType::get(newInnerType, t.isVolatile());
       })
       .Default([&](mlir::Type t) -> mlir::Type {
         assert((fir::isa_trivial(t) || llvm::isa<fir::RecordType>(t) ||
@@ -1381,11 +1382,12 @@ changeTypeShape(mlir::Type type,
           return fir::SequenceType::get(*newShape, seqTy.getEleTy());
         return seqTy.getEleTy();
       })
-      .Case<fir::ReferenceType>([&](fir::ReferenceType rt) -> mlir::Type {
-        return fir::ReferenceType::get(changeTypeShape(rt.getEleTy(), newShape),
-                                       rt.isVolatile());
+      .Case<fir::ReferenceType, fir::BoxType>([&](auto t) -> mlir::Type {
+        using FIRT = decltype(t);
+        return FIRT::get(changeTypeShape(t.getEleTy(), newShape),
+                         t.isVolatile());
       })
-      .Case<fir::PointerType, fir::HeapType, fir::BoxType, fir::ClassType>(
+      .Case<fir::PointerType, fir::HeapType, fir::ClassType>(
           [&](auto t) -> mlir::Type {
             using FIRT = decltype(t);
             return FIRT::get(changeTypeShape(t.getEleTy(), newShape));
