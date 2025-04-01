@@ -136,7 +136,7 @@ mlir::Type fir::parseFirType(FIROpsDialect *dialect,
   auto parseResult = generatedTypeParser(parser, &typeTag, genType);
   if (parseResult.has_value())
     return genType;
-  parser.emitError(parser.getNameLoc(), "unknown fir type: ") << typeTag;
+  parser.emitError(parser.getCurrentLocation(), "unknown fir type: ") << typeTag;
   return {};
 }
 
@@ -770,12 +770,13 @@ fir::BoxType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
 
 mlir::Type fir::BoxType::parse(mlir::AsmParser &parser) {
   mlir::Type ty;
-  bool isVolatile;
+  bool isVolatile = false;
+  auto loc = parser.getCurrentLocation();
   if (parser.parseLess() || parser.parseType(ty) ||
       parseOptionalCommaAndKeyword(parser, getVolatileKeyword(), isVolatile) ||
       parser.parseGreater())
     return {};
-  return get(ty, isVolatile);
+  return parser.getChecked<BoxType>(loc, parser.getContext(), ty, isVolatile);
 }
 
 void fir::BoxType::print(mlir::AsmPrinter &printer) const {
@@ -1098,12 +1099,13 @@ unsigned fir::RecordType::getFieldIndex(llvm::StringRef ident) {
 // `ref` `<` type (`, volatile` $volatile^)? `>`
 mlir::Type fir::ReferenceType::parse(mlir::AsmParser &parser) {
   mlir::Type ty;
-  bool isVolatile;
+  bool isVolatile = false;
+  auto loc = parser.getCurrentLocation();
   if (parser.parseLess() || parser.parseType(ty) ||
       parseOptionalCommaAndKeyword(parser, getVolatileKeyword(), isVolatile) ||
       parser.parseGreater())
     return {};
-  return get(ty, isVolatile);
+  return parser.getChecked<ReferenceType>(loc, parser.getContext(), ty, isVolatile);
 }
 
 void fir::ReferenceType::print(mlir::AsmPrinter &printer) const {

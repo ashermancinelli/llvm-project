@@ -1357,9 +1357,7 @@ llvm::LogicalResult fir::VolatileCastOp::verify() {
        mlir::isa<fir::ReferenceType>(toType));
   bool sameElementType = fir::dyn_cast_ptrOrBoxEleTy(fromType) ==
                          fir::dyn_cast_ptrOrBoxEleTy(toType);
-  if (fromType == toType ||
-      fir::isa_volatile_type(fromType) == fir::isa_volatile_type(toType) ||
-      !sameBaseType || !sameElementType)
+  if (!sameBaseType || !sameElementType)
     return emitOpError("types must be identical except for volatility ")
            << fromType << " / " << toType;
   return mlir::success();
