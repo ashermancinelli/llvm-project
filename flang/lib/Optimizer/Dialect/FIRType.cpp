@@ -136,8 +136,7 @@ mlir::Type fir::parseFirType(FIROpsDialect *dialect,
   auto parseResult = generatedTypeParser(parser, &typeTag, genType);
   if (parseResult.has_value())
     return genType;
-  parser.emitError(parser.getNameLoc(), "unknown fir type: ")
-      << typeTag;
+  parser.emitError(parser.getNameLoc(), "unknown fir type: ") << typeTag;
   return {};
 }
 
