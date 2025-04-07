@@ -39,7 +39,7 @@ program p
   ! CHECK:     %[[V_16:[0-9]+]] = fir.if %[[V_15]] -> (f32) {
   ! CHECK:       fir.result %[[V_13]] : f32
   ! CHECK:     } else {
-  ! CHECK:       %[[V_27:[0-9]+]] = fir.call @llvm.get.rounding() fastmath<contract> : () -> i32
+  ! CHECK:       %[[V_27:[0-9]+]] = llvm.call_intrinsic "llvm.get.rounding"() : () -> i32
   ! CHECK-DAG:   %[[V_28:[0-9]+]] = arith.cmpi slt, %[[V_12]], %c0{{.*}} : i64
   ! CHECK-DAG:   %[[V_29:[0-9]+]] = arith.cmpi sgt, %[[V_12]], %c0{{.*}} : i64
   ! CHECK-DAG:   %[[V_30:[0-9]+]] = arith.bitcast %[[V_13]] : f32 to i32
@@ -149,7 +149,7 @@ program p
   ! CHECK:       }
   ! CHECK:       fir.result %[[V_28]] : f32
   ! CHECK:     } else {
-  ! CHECK-DAG:   %[[V_27:[0-9]+]] = fir.call @llvm.get.rounding() fastmath<contract> : () -> i32
+  ! CHECK-DAG:   %[[V_27:[0-9]+]] = llvm.call_intrinsic "llvm.get.rounding"() : () -> i32
   ! CHECK-DAG:   %[[V_28:[0-9]+]] = arith.cmpf olt, %[[V_22]], %cst{{[_0-9]*}} fastmath<contract> : f64
   ! CHECK-DAG:   %[[V_29:[0-9]+]] = arith.cmpf ogt, %[[V_22]], %cst{{[_0-9]*}} fastmath<contract> : f64
   ! CHECK-DAG:   %[[V_30:[0-9]+]] = arith.bitcast %[[V_23]] : f32 to i32

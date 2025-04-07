@@ -5190,8 +5190,7 @@ void IntrinsicLibrary::genIeeeGetRoundingMode(
   if (args.size() == 2)
     checkRadix(builder, loc, fir::getBase(args[1]), "ieee_get_rounding_mode");
   auto [fieldRef, fieldTy] = getFieldRef(builder, loc, fir::getBase(args[0]));
-  mlir::func::FuncOp getRound = fir::factory::getLlvmGetRounding(builder);
-  mlir::Value mode = builder.create<fir::CallOp>(loc, getRound).getResult(0);
+  mlir::Value mode = fir::factory::genGetRounding(builder, loc)->getResult(0);
   mode = builder.createConvert(loc, fieldTy, mode);
   builder.create<fir::StoreOp>(loc, mode, fieldRef);
 }
@@ -5640,8 +5639,7 @@ mlir::Value IntrinsicLibrary::genIeeeReal(mlir::Type resultType,
 
   // Code common to (a < b) and (a > b) branches.
   builder.setInsertionPointToStart(&ifOp1.getElseRegion().front());
-  mlir::func::FuncOp getRound = fir::factory::getLlvmGetRounding(builder);
-  mlir::Value mode = builder.create<fir::CallOp>(loc, getRound).getResult(0);
+  mlir::Value mode = fir::factory::genGetRounding(builder, loc)->getResult(0);
   mlir::Value aIsNegative, aIsPositive;
   if (aIntType) {
     mlir::Value zero = builder.createIntegerConstant(loc, aIntType, 0);
@@ -5806,11 +5804,9 @@ mlir::Value IntrinsicLibrary::genIeeeRint(mlir::Type resultType,
   // integral value.
   assert(args.size() == 2);
   mlir::Value a = args[0];
-  mlir::func::FuncOp getRound = fir::factory::getLlvmGetRounding(builder);
-  mlir::func::FuncOp setRound = fir::factory::getLlvmSetRounding(builder);
   mlir::Value mode;
   if (isStaticallyPresent(args[1])) {
-    mode = builder.create<fir::CallOp>(loc, getRound).getResult(0);
+    mode = fir::factory::genGetRounding(builder, loc)->getResult(0);
     genIeeeSetRoundingMode({args[1]});
   }
   if (mlir::cast<mlir::FloatType>(resultType).getWidth() == 16)
@@ -5819,7 +5815,7 @@ mlir::Value IntrinsicLibrary::genIeeeRint(mlir::Type resultType,
   mlir::Value result = builder.create<fir::ConvertOp>(
       loc, resultType, genRuntimeCall("nearbyint", a.getType(), a));
   if (isStaticallyPresent(args[1])) {
-    builder.create<fir::CallOp>(loc, setRound, mode);
+    (void)fir::factory::genSetRounding(builder, loc, mode);
   } else {
     mlir::Value inexact = builder.create<mlir::arith::CmpFOp>(
         loc, mlir::arith::CmpFPredicate::ONE, args[0], result);
@@ -5865,7 +5861,6 @@ void IntrinsicLibrary::genIeeeSetRoundingMode(
   if (args.size() == 2)
     checkRadix(builder, loc, fir::getBase(args[1]), "ieee_set_rounding_mode");
   auto [fieldRef, fieldTy] = getFieldRef(builder, loc, fir::getBase(args[0]));
-  mlir::func::FuncOp setRound = fir::factory::getLlvmSetRounding(builder);
   mlir::Value mode = builder.create<fir::LoadOp>(loc, fieldRef);
   static_assert(
       _FORTRAN_RUNTIME_IEEE_TO_ZERO >= 0 &&
@@ -5885,9 +5880,7 @@ void IntrinsicLibrary::genIeeeSetRoundingMode(
       loc, fieldTy, _FORTRAN_RUNTIME_IEEE_NEAREST);
   mode = builder.create<mlir::arith::SelectOp>(loc, modeIsSupported, mode,
                                                nearest);
-  mode = builder.create<fir::ConvertOp>(
-      loc, setRound.getFunctionType().getInput(0), mode);
-  builder.create<fir::CallOp>(loc, setRound, mode);
+  (void)fir::factory::genSetRounding(builder, loc, mode);
 }
 
 // IEEE_SET_UNDERFLOW_MODE

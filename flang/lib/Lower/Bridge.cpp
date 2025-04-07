@@ -5581,14 +5581,10 @@ private:
       // F18 Clause 17.4p5: In a procedure [...], the processor shall not
       // change the rounding modes on entry, and on return shall ensure that
       // the rounding modes are the same as they were on entry.
-      mlir::func::FuncOp getRounding =
-          fir::factory::getLlvmGetRounding(*builder);
-      mlir::func::FuncOp setRounding =
-          fir::factory::getLlvmSetRounding(*builder);
-      mlir::Value roundingMode =
-          builder->create<fir::CallOp>(loc, getRounding).getResult(0);
+      mlir::Operation *roundingModeOp = fir::factory::genGetRounding(*builder, loc);
+      mlir::Value roundingMode = roundingModeOp->getResult(0);
       bridge.fctCtx().attachCleanup([=]() {
-        builder->create<fir::CallOp>(endLoc, setRounding, roundingMode);
+        (void)fir::factory::genSetRounding(*builder, loc, roundingMode);
       });
     }
     if ((funit.mayModifyUnderflowMode) &&

@@ -25,6 +25,8 @@
 #include "flang/Optimizer/Support/InternalNames.h"
 #include "flang/Optimizer/Support/Utils.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
+#include "mlir/Dialect/LLVMIR/LLVMInterfaces.h"
+#include "mlir/Conversion/ArithCommon/AttrToLLVMConverter.h"
 #include "mlir/Dialect/OpenACC/OpenACC.h"
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -868,13 +870,19 @@ mlir::Value fir::FirOpBuilder::genAbsentOp(mlir::Location loc,
 
 void fir::FirOpBuilder::setCommonAttributes(mlir::Operation *op) const {
   auto fmi = mlir::dyn_cast<mlir::arith::ArithFastMathInterface>(*op);
+  auto fmfAttr = mlir::arith::FastMathFlagsAttr::get(op->getContext(), fastMathFlags);
   if (fmi) {
     // TODO: use fmi.setFastMathFlagsAttr() after D137114 is merged.
     //       For now set the attribute by the name.
     llvm::StringRef arithFMFAttrName = fmi.getFastMathAttrName();
     if (fastMathFlags != mlir::arith::FastMathFlags::none)
-      op->setAttr(arithFMFAttrName, mlir::arith::FastMathFlagsAttr::get(
-                                        op->getContext(), fastMathFlags));
+      op->setAttr(arithFMFAttrName, fmfAttr);
+  }
+  auto llvmFastMathInterface =
+      mlir::dyn_cast<mlir::LLVM::FastmathFlagsInterface>(*op);
+  if (llvmFastMathInterface) {
+    auto llvmFmfAttr = mlir::arith::convertArithFastMathAttrToLLVM(fmfAttr);
+    op->setAttr(llvmFastMathInterface.getFastmathAttrName(), llvmFmfAttr);
   }
   auto iofi =
       mlir::dyn_cast<mlir::arith::ArithIntegerOverflowFlagsInterface>(*op);
@@ -1788,6 +1796,27 @@ mlir::Value fir::factory::genCPtrOrCFunptrValue(fir::FirOpBuilder &builder,
   auto arrayAttr =
       builder.getArrayAttr({builder.getIntegerAttr(builder.getIndexType(), 0)});
   return builder.create<fir::ExtractValueOp>(loc, addrFieldTy, cPtr, arrayAttr);
+}
+
+mlir::Operation *fir::factory::genGetRounding(fir::FirOpBuilder &builder,
+                                         mlir::Location loc) {
+  auto getRoundingName = builder.getStringAttr("llvm.get.rounding");
+  auto resultType = builder.getI32Type();
+  auto intrinsicCall = builder.create<mlir::LLVM::CallIntrinsicOp>(
+      loc, resultType, getRoundingName, mlir::ValueRange{});
+  llvm::dbgs() << intrinsicCall << "\n";
+  return intrinsicCall;
+}
+
+mlir::Operation *fir::factory::genSetRounding(fir::FirOpBuilder &builder,
+                                              mlir::Location loc,
+                                              mlir::Value roundingMode) {
+  auto setRoundingName = builder.getStringAttr("llvm.set.rounding");
+  roundingMode = builder.createConvert(loc, builder.getI32Type(), roundingMode);
+  auto intrinsicCall = builder.create<mlir::LLVM::CallIntrinsicOp>(
+      loc, setRoundingName, mlir::ValueRange{roundingMode});
+  llvm::dbgs() << intrinsicCall << "\n";
+  return intrinsicCall;
 }
 
 fir::BoxValue fir::factory::createBoxValue(fir::FirOpBuilder &builder,

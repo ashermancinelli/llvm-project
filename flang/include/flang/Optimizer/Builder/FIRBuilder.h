@@ -846,6 +846,13 @@ mlir::Value genCDevPtrAddr(fir::FirOpBuilder &builder, mlir::Location loc,
 mlir::Value genCPtrOrCFunptrValue(fir::FirOpBuilder &builder,
                                   mlir::Location loc, mlir::Value cPtr);
 
+/// Call the `llvm.get.rounding` intrinsic.
+mlir::Operation *genGetRounding(FirOpBuilder &builder, mlir::Location loc);
+
+/// Call the `llvm.set.rounding` intrinsic.
+mlir::Operation *genSetRounding(FirOpBuilder &builder, mlir::Location loc,
+                                mlir::Value roundingMode);
+
 /// Create a fir.box from a fir::ExtendedValue and wrap it in a fir::BoxValue
 /// to keep all the lower bound and explicit parameter information.
 fir::BoxValue createBoxValue(fir::FirOpBuilder &builder, mlir::Location loc,
