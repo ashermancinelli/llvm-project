@@ -2,6 +2,9 @@
 
 program p
   integer,volatile::i,arr(10)
+  integer,volatile,target::tgt(10)
+  integer,volatile,pointer,dimension(:)::ptr
+  ptr => tgt
   i=0
   arr=1
   ! casting from volatile ref to non-volatile ref should be okay here
@@ -9,6 +12,10 @@ program p
   call not_declared_volatile_in_this_scope(arr)
   call declared_volatile_in_this_scope(arr,10)
   print*,arr,i,a(),b(),c()
+  call d(arr)
+  call e(arr)
+  call f(arr)
+  call g(ptr)
 contains
   elemental subroutine not_declared_volatile_in_this_scope(v)
     integer,intent(inout)::v
@@ -31,6 +38,18 @@ contains
     volatile::r
     r=3
   end function
+  subroutine d(arr)
+    integer,volatile::arr(10)
+  end subroutine
+  subroutine e(arr)
+    integer,volatile,dimension(:)::arr
+  end subroutine
+  subroutine f(arr)
+    integer,volatile,dimension(10)::arr
+  end subroutine
+  subroutine g(arr)
+    integer,volatile,dimension(:),pointer::arr
+  end subroutine
 end program
 
 ! CHECK-LABEL:   func.func @_QQmain
