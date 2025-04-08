@@ -518,7 +518,8 @@ Fortran::lower::genCallOpAndResult(
         // Do not attempt any reboxing here that could break this.
         bool legacyLowering =
             !converter.getLoweringOptions().getLowerToHighLevelFIR();
-        cast = builder.convertWithSemantics(loc, snd, fst,
+        cast = builder.createVolatileCast(loc, fir::isa_volatile_type(snd), fst);
+        cast = builder.convertWithSemantics(loc, snd, cast,
                                             callingImplicitInterface,
                                             /*allowRebox=*/legacyLowering);
       }

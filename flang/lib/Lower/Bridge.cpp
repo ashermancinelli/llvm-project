@@ -4334,11 +4334,13 @@ private:
             Fortran::lower::getUntypedBoxProcType(builder->getContext())};
         hlfir::Entity rhs(
             fir::factory::createNullBoxProc(*builder, loc, boxTy));
+        llvm::errs() << "lhs:\n" << lhs << '\n' << "rhs:\n" << rhs << '\n';
         builder->createStoreWithConvert(loc, rhs, lhs);
         return;
       }
       hlfir::Entity rhs(getBase(Fortran::lower::convertExprToAddress(
           loc, *this, assign.rhs, localSymbols, stmtCtx)));
+      llvm::errs() << "lhs:\n" << lhs << '\n' << "rhs:\n" << rhs << '\n';
       builder->createStoreWithConvert(loc, rhs, lhs);
       return;
     }

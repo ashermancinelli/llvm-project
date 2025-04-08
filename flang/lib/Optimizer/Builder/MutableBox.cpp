@@ -28,9 +28,18 @@ createNewFirBox(fir::FirOpBuilder &builder, mlir::Location loc,
                 const fir::MutableBoxValue &box, mlir::Value addr,
                 mlir::ValueRange lbounds, mlir::ValueRange extents,
                 mlir::ValueRange lengths, mlir::Value tdesc = {}) {
-  if (mlir::isa<fir::BaseBoxType>(addr.getType()))
+  llvm::errs() << "AJM createNewFirBox:\n"
+               << "box:\n"
+               << box << '\n'
+               << "addr:\n"
+               << addr << '\n'
+               << "tdesc:\n"
+               << tdesc << '\n';
+  if (mlir::isa<fir::BaseBoxType>(addr.getType())) {
+    llvm::errs() << "AJM createNewFirBox isBaseBoxType\n";
     // The entity is already boxed.
     return builder.createConvert(loc, box.getBoxTy(), addr);
+  }
 
   mlir::Value shape;
   if (!extents.empty()) {
@@ -76,7 +85,15 @@ createNewFirBox(fir::FirOpBuilder &builder, mlir::Location loc,
     cleanedLengths = lengths;
   }
   mlir::Value emptySlice;
-  return builder.create<fir::EmboxOp>(loc, box.getBoxTy(), cleanedAddr, shape,
+  llvm::errs() << "AJM createNewFirBox end:\n"
+               << "box.getBoxTy():\n" << box.getBoxTy() << '\n'
+               << "cleanedAddr:\n" << cleanedAddr << '\n'
+               << "shape:\n" << shape << '\n'
+               << "emptySlice:\n" << emptySlice << '\n'
+               << "tdesc:\n" << tdesc << '\n';
+  auto boxType = fir::updateTypeWithVolatility(
+      box.getBoxTy(), fir::isa_volatile_type(cleanedAddr.getType()));
+  return builder.create<fir::EmboxOp>(loc, boxType, cleanedAddr, shape,
                                       emptySlice, cleanedLengths, tdesc);
 }
 
@@ -210,6 +227,7 @@ public:
   void updateMutableBox(mlir::Value addr, mlir::ValueRange lbounds,
                         mlir::ValueRange extents, mlir::ValueRange lengths,
                         mlir::Value tdesc = {}) {
+    llvm::errs() << "AJM updateMutableBox:\n" << "box:\n" << box << '\n' << "addr:\n" << addr << '\n';
     if (box.isDescribedByVariables())
       updateMutableProperties(addr, lbounds, extents, lengths);
     else
@@ -279,9 +297,13 @@ private:
                    mlir::ValueRange extents, mlir::ValueRange lengths,
                    mlir::Value tdesc = {},
                    unsigned allocator = kDefaultAllocator) {
+    llvm::errs() << "AJM updateIRBox:\n" << box << '\n' << addr << '\n' << tdesc << '\n';
     mlir::Value irBox = createNewFirBox(builder, loc, box, addr, lbounds,
                                         extents, lengths, tdesc);
-    builder.create<fir::StoreOp>(loc, irBox, box.getAddr());
+    const bool valueTypeIsVolatile = fir::isa_volatile_type(fir::unwrapRefType(box.getAddr().getType()));
+    irBox = builder.createVolatileCast(loc, valueTypeIsVolatile, irBox);
+    auto store = builder.create<fir::StoreOp>(loc, irBox, box.getAddr());
+    llvm::errs() << "AJM updateIRBox end:\n" << "store:\n" << store << '\n';
   }
 
   /// Update the set of property variables of the MutableBoxValue.
@@ -333,6 +355,10 @@ mlir::Value fir::factory::createUnallocatedBox(
     fir::FirOpBuilder &builder, mlir::Location loc, mlir::Type boxType,
     mlir::ValueRange nonDeferredParams, mlir::Value typeSourceBox,
     unsigned allocator) {
+  llvm::errs() << "createUnallocatedBox\n" << boxType << '\n' << "nonDeferredParams:\n";
+  for (auto param : nonDeferredParams)
+    llvm::errs() << param << '\n';
+  llvm::errs() << "typeSourceBox:\n" << typeSourceBox << '\n';
   auto baseBoxType = mlir::cast<fir::BaseBoxType>(boxType);
   // Giving unallocated/disassociated status to assumed-rank POINTER/
   // ALLOCATABLE is not directly possible to a Fortran user. But the
@@ -346,7 +372,7 @@ mlir::Value fir::factory::createUnallocatedBox(
     baseBoxType = baseBoxType.getBoxTypeWithNewShape(/*rank=*/0);
   auto baseAddrType = baseBoxType.getEleTy();
   if (!fir::isa_ref_type(baseAddrType))
-    baseAddrType = builder.getRefType(baseAddrType);
+    baseAddrType = builder.getRefType(baseAddrType, fir::isa_volatile_type(baseBoxType));
   auto type = fir::unwrapRefType(baseAddrType);
   auto eleTy = fir::unwrapSequenceType(type);
   if (auto recTy = mlir::dyn_cast<fir::RecordType>(eleTy))
@@ -376,6 +402,18 @@ mlir::Value fir::factory::createUnallocatedBox(
     }
   }
   mlir::Value emptySlice;
+  llvm::errs() << "AJM:\n"
+               << baseBoxType << '\n'
+               << "nullAddr:\n"
+               << nullAddr << '\n'
+               << "shape:\n"
+               << shape << '\n'
+               << "emptySlice:\n"
+               << emptySlice << '\n'
+               << "lenParams:\n";
+  for (auto param : lenParams)
+    llvm::errs() << param << '\n';
+  llvm::errs() << "typeSourceBox:\n" << typeSourceBox << '\n';
   auto embox = builder.create<fir::EmboxOp>(
       loc, baseBoxType, nullAddr, shape, emptySlice, lenParams, typeSourceBox);
   if (allocator != 0)
@@ -513,10 +551,11 @@ void fir::factory::associateMutableBox(fir::FirOpBuilder &builder,
                                        const fir::ExtendedValue &source,
                                        mlir::ValueRange lbounds) {
   MutablePropertyWriter writer(builder, loc, box);
+  llvm::errs() << "AJM associateMutableBox:\n" << box << '\n' << source << '\n';
   source.match(
       [&](const fir::PolymorphicValue &p) {
         mlir::Value sourceBox;
-        if (auto polyBox = source.getBoxOf<fir::PolymorphicValue>())
+        if (auto *polyBox = source.getBoxOf<fir::PolymorphicValue>())
           sourceBox = polyBox->getSourceBox();
         writer.updateMutableBox(p.getAddr(), /*lbounds=*/std::nullopt,
                                 /*extents=*/std::nullopt,
@@ -544,6 +583,7 @@ void fir::factory::associateMutableBox(fir::FirOpBuilder &builder,
       [&](const fir::BoxValue &arr) {
         // Rebox array fir.box to the pointer type and apply potential new lower
         // bounds.
+        llvm::errs() << "AJM box:\n" << box << '\n' << "arr:\n" << arr << '\n';
         mlir::ValueRange newLbounds = lbounds.empty()
                                           ? mlir::ValueRange{arr.getLBounds()}
                                           : mlir::ValueRange{lbounds};
@@ -591,6 +631,7 @@ void fir::factory::associateMutableBox(fir::FirOpBuilder &builder,
       [&](const fir::ProcBoxValue &) {
         TODO(loc, "procedure pointer assignment");
       });
+  llvm::errs() << "AJM associateMutableBox end:\n" << box << '\n' << source << '\n';
 }
 
 void fir::factory::associateMutableBoxWithRemap(
