@@ -92,11 +92,6 @@ static constexpr llvm::StringRef getAsynchronousAttrName() {
   return "fir.asynchronous";
 }
 
-/// Attribute to mark Fortran entities with the VOLATILE attribute.
-static constexpr llvm::StringRef getVolatileAttrName() {
-  return "fir.volatile";
-}
-
 /// Attribute to mark that a function argument is a character dummy procedure.
 /// Character dummy procedure have special ABI constraints.
 static constexpr llvm::StringRef getCharacterProcedureDummyAttrName() {

@@ -217,13 +217,20 @@ void hlfir::DeclareOp::build(mlir::OpBuilder &builder,
   auto nameAttr = builder.getStringAttr(uniq_name);
   mlir::Type inputType = memref.getType();
   bool hasExplicitLbs = hasExplicitLowerBounds(shape);
-  if (fortran_attrs && mlir::isa<fir::ReferenceType>(inputType) &&
+  if (auto refType = mlir::dyn_cast<fir::ReferenceType>(inputType);
+      fortran_attrs && refType &&
       bitEnumContainsAny(fortran_attrs.getFlags(),
                          fir::FortranVariableFlagsEnum::fortran_volatile)) {
-    auto refType = mlir::cast<fir::ReferenceType>(inputType);
-    inputType = fir::ReferenceType::get(refType.getEleTy(), true);
-    memref =
-        builder.create<fir::VolatileCastOp>(memref.getLoc(), inputType, memref);
+    auto eleType = refType.getEleTy();
+    const bool isPointer = bitEnumContainsAny(fortran_attrs.getFlags(),
+                           fir::FortranVariableFlagsEnum::pointer);
+    if (isPointer) {
+      // If an entity is a pointer, the entity it points to is volatile, as far
+      // as consumers of the pointer are concerned.
+      eleType = fir::updateTypeWithVolatility(eleType, true);
+    }
+    inputType = fir::ReferenceType::get(eleType, /*isVolatile=*/true);
+    memref = builder.create<fir::VolatileCastOp>(memref.getLoc(), inputType, memref);
   }
   mlir::Type hlfirVariableType =
       getHLFIRVariableType(inputType, hasExplicitLbs);

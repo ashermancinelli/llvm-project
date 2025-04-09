@@ -1111,9 +1111,7 @@ private:
       addMLIRAttr(fir::getContiguousAttrName());
     if (obj.attrs.test(Attrs::Value))
       isValueAttr = true; // TODO: do we want an mlir::Attribute as well?
-    if (obj.attrs.test(Attrs::Volatile)) {
-      addMLIRAttr(fir::getVolatileAttrName());
-    }
+
     // obj.attrs.test(Attrs::Asynchronous) does not impact the way the argument
     // is passed given flang implement asynch IO synchronously. However, it's
     // added to determine whether the argument is captured.

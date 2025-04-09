@@ -59,8 +59,7 @@ void FunctionAttrPass::runOnOperation() {
     for (auto [index, argType] : llvm::enumerate(func.getArgumentTypes())) {
       if (mlir::isa<fir::ReferenceType>(argType) &&
           !func.getArgAttr(index, fir::getTargetAttrName()) &&
-          !func.getArgAttr(index, fir::getAsynchronousAttrName()) &&
-          !func.getArgAttr(index, fir::getVolatileAttrName()))
+          !func.getArgAttr(index, fir::getAsynchronousAttrName()))
         func.setArgAttr(index, nocapture, unitAttr);
     }
   }

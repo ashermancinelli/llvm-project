@@ -1348,16 +1348,36 @@ mlir::ParseResult fir::CmpcOp::parse(mlir::OpAsmParser &parser,
 // VolatileCastOp
 //===----------------------------------------------------------------------===//
 
+static bool typesMatchExceptForVolatility(mlir::Type fromType, mlir::Type toType) {
+  // If we can change only the volatility and get identical types, then we match.
+  if (fir::updateTypeWithVolatility(fromType, fir::isa_volatile_type(toType)) ==
+      toType)
+    return true;
+
+  // Otherwise, recurse on the element types if the base classes are the same.
+  const bool match =
+      llvm::TypeSwitch<mlir::Type, bool>(fromType)
+          .Case<fir::BoxType, fir::ReferenceType, fir::ClassType>(
+              [&](auto type) {
+                using TYPE = decltype(type);
+                // If we are not the same base class, then we don't match.
+                auto castedToType = mlir::dyn_cast<TYPE>(toType);
+                if (!castedToType)
+                  return false;
+                // If we are the same base class, we match if the element types
+                // match.
+                return typesMatchExceptForVolatility(type.getEleTy(),
+                                                     castedToType.getEleTy());
+              })
+          .Default([](mlir::Type) { return false; });
+
+  return match;
+}
+
 llvm::LogicalResult fir::VolatileCastOp::verify() {
   mlir::Type fromType = getValue().getType();
   mlir::Type toType = getType();
-  bool sameBaseType =
-      (mlir::isa<fir::BoxType>(fromType) && mlir::isa<fir::BoxType>(toType)) ||
-      (mlir::isa<fir::ReferenceType>(fromType) &&
-       mlir::isa<fir::ReferenceType>(toType));
-  bool sameElementType = fir::dyn_cast_ptrOrBoxEleTy(fromType) ==
-                         fir::dyn_cast_ptrOrBoxEleTy(toType);
-  if (!sameBaseType || !sameElementType)
+  if (!typesMatchExceptForVolatility(fromType, toType))
     return emitOpError("types must be identical except for volatility ")
            << fromType << " / " << toType;
   return mlir::success();
@@ -1840,10 +1860,6 @@ llvm::LogicalResult fir::EmboxOp::verify() {
     return emitOpError("slice must not be provided for a scalar");
   if (getSourceBox() && !mlir::isa<fir::ClassType>(getResult().getType()))
     return emitOpError("source_box must be used with fir.class result type");
-  if (fir::isa_volatile_type(getMemref().getType()) !=
-      fir::isa_volatile_type(getResult().getType()))
-    return emitOpError("cannot convert between volatile and non-volatile "
-                       "types, use fir.volatile_cast instead");
   return mlir::success();
 }
 
