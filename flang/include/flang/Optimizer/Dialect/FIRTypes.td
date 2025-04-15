@@ -75,6 +75,10 @@ def fir_BoxType : FIR_Type<"Box", "box", [], "BaseBoxType"> {
     Descriptors are tuples of information that describe an entity being passed
     from a calling context. This information might include (but is not limited
     to) whether the entity is an array, its size, or what type it has.
+
+    Box types may be volatile. Operations taking boxed values must set their
+    memory effects appropriately. Accesses of volatile memory are modeled as
+    read and write effects to the volatile memory resource.
   }];
 
   let parameters = (ins "mlir::Type":$eleTy, "bool":$isVolatile);
@@ -365,6 +369,11 @@ def fir_ReferenceType : FIR_Type<"Reference", "ref"> {
 
   let description = [{
     The type of a reference to an entity in memory.
+
+    References can be volatile. Operations that can possibly take volatile
+    values must set their memory effects appropriately. Accesses of volatile
+    memory are modeled as read and write effects to the volatile memory
+    resource.
   }];
 
   let parameters = (ins "mlir::Type":$eleTy, "bool":$isVolatile);

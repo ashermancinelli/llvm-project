@@ -61,6 +61,7 @@ getIntrinsicEffects(mlir::Operation *self,
   // }
   for (mlir::OpOperand &operand : self->getOpOperands()) {
     mlir::Type opTy = operand.get().getType();
+    fir::addVolatileMemoryEffects({opTy}, effects);
     if (fir::isa_ref_type(opTy) || fir::isa_box_type(opTy))
       effects.emplace_back(mlir::MemoryEffects::Read::get(), &operand,
                            mlir::SideEffects::DefaultResource::get());
@@ -163,6 +164,8 @@ void hlfir::AssignOp::getEffects(
                            mlir::SideEffects::DefaultResource::get());
     }
   }
+
+  fir::addVolatileMemoryEffects({lhsType, rhsType}, effects);
 
   if (getRealloc()) {
     // Reallocation of the data cannot be precisely described by this API.

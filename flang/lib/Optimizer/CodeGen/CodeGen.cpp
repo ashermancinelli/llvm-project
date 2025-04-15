@@ -3556,7 +3556,9 @@ struct StoreOpConversion : public fir::FIROpConversion<fir::StoreOp> {
     mlir::Value llvmValue = adaptor.getValue();
     mlir::Value llvmMemref = adaptor.getMemref();
     mlir::LLVM::AliasAnalysisOpInterface newOp;
-    const bool isVolatile = fir::isa_volatile_type(store.getMemref().getType());
+    const bool isVolatile =
+        fir::isa_volatile_type(store.getMemref().getType()) ||
+        fir::isa_volatile_type(store.getValue().getType());
     if (auto boxTy = mlir::dyn_cast<fir::BaseBoxType>(storeTy)) {
       mlir::Type llvmBoxTy = lowerTy().convertBoxTypeAsStruct(boxTy);
       // Always use memcpy because LLVM is not as effective at optimizing
@@ -3569,8 +3571,7 @@ struct StoreOpConversion : public fir::FIROpConversion<fir::StoreOp> {
     } else {
       mlir::LLVM::StoreOp storeOp =
           rewriter.create<mlir::LLVM::StoreOp>(loc, llvmValue, llvmMemref);
-      if (isVolatile)
-        storeOp.setVolatile_(true);
+      storeOp.setVolatile_(isVolatile);
       newOp = storeOp;
     }
     if (std::optional<mlir::ArrayAttr> optionalTag = store.getTbaa())
@@ -3596,14 +3597,17 @@ struct CopyOpConversion : public fir::FIROpConversion<fir::CopyOp> {
     mlir::Type copyTy = fir::unwrapRefType(copy.getSource().getType());
     mlir::Value copySize =
         genTypeStrideInBytes(loc, i64Ty, rewriter, convertType(copyTy));
+    const bool isVolatile =
+        fir::isa_volatile_type(copy.getSource().getType()) ||
+        fir::isa_volatile_type(copy.getDestination().getType());
 
     mlir::LLVM::AliasAnalysisOpInterface newOp;
     if (copy.getNoOverlap())
       newOp = rewriter.create<mlir::LLVM::MemcpyOp>(
-          loc, llvmDestination, llvmSource, copySize, /*isVolatile=*/false);
+          loc, llvmDestination, llvmSource, copySize, isVolatile);
     else
       newOp = rewriter.create<mlir::LLVM::MemmoveOp>(
-          loc, llvmDestination, llvmSource, copySize, /*isVolatile=*/false);
+          loc, llvmDestination, llvmSource, copySize, isVolatile);
 
     // TODO: propagate TBAA once FirAliasTagOpInterface added to CopyOp.
     attachTBAATag(newOp, copyTy, copyTy, nullptr);

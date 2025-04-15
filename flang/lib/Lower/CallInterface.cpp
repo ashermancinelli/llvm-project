@@ -1151,7 +1151,8 @@ private:
 
     if (obj.attrs.test(Attrs::Allocatable) || obj.attrs.test(Attrs::Pointer)) {
       // Pass as fir.ref<fir.box> or fir.ref<fir.class>
-      mlir::Type boxRefType = fir::ReferenceType::get(boxType);
+      const bool isVolatile = obj.attrs.test(Attrs::Volatile);
+      mlir::Type boxRefType = fir::ReferenceType::get(boxType, isVolatile);
       addFirOperand(boxRefType, nextPassedArgPosition(), Property::MutableBox,
                     attrs);
       addPassedArg(PassEntityBy::MutableBox, entity, characteristics);

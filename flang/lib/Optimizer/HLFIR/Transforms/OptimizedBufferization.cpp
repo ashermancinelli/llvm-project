@@ -1126,7 +1126,9 @@ public:
       builder.create<fir::StoreOp>(loc, flagSet, flagRef);
       mlir::Type resultElemTy =
           hlfir::getFortranElementType(resultArr.getType());
-      mlir::Type returnRefTy = builder.getRefType(resultElemTy);
+      const bool isVolatile = fir::isa_volatile_type(resultArr.getType()) ||
+                              fir::isa_volatile_type(flagRef.getType());
+      mlir::Type returnRefTy = builder.getRefType(resultElemTy, isVolatile);
       mlir::IndexType idxTy = builder.getIndexType();
 
       for (unsigned int i = 0; i < rank; ++i) {
@@ -1153,7 +1155,8 @@ public:
     auto getAddrFn = [](fir::FirOpBuilder builder, mlir::Location loc,
                         const mlir::Type &resultElemType, mlir::Value resultArr,
                         mlir::Value index) {
-      mlir::Type resultRefTy = builder.getRefType(resultElemType);
+      const bool isVolatile = fir::isa_volatile_type(resultArr.getType());
+      mlir::Type resultRefTy = builder.getRefType(resultElemType, isVolatile);
       mlir::Value oneIdx =
           builder.createIntegerConstant(loc, builder.getIndexType(), 1);
       index = builder.create<mlir::arith::AddIOp>(loc, index, oneIdx);

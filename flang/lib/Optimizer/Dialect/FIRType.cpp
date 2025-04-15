@@ -1418,8 +1418,11 @@ changeTypeShape(mlir::Type type,
           return fir::SequenceType::get(*newShape, seqTy.getEleTy());
         return seqTy.getEleTy();
       })
-      .Case<fir::PointerType, fir::HeapType, fir::ReferenceType, fir::BoxType,
-            fir::ClassType>([&](auto t) -> mlir::Type {
+      .Case<fir::ReferenceType, fir::BoxType, fir::ClassType>([&](auto t) -> mlir::Type {
+        using FIRT = decltype(t);
+        return FIRT::get(changeTypeShape(t.getEleTy(), newShape), t.isVolatile());
+      })
+      .Case<fir::PointerType, fir::HeapType>([&](auto t) -> mlir::Type {
         using FIRT = decltype(t);
         return FIRT::get(changeTypeShape(t.getEleTy(), newShape));
       })
