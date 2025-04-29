@@ -280,6 +280,10 @@ inline RT_API_ATTRS T RealMod(
     // std::fmod() semantics on signed operands seems to match
     // the requirements of MOD().  MODULO() needs adjustment.
     T result{std::fmod(a, p)};
+    if (result == 0.) {
+      // Preserve sign bit for zero results
+      result = a < 0 ? -T{0} : T{0};
+    }
     if constexpr (IS_MODULO) {
       if ((a < 0) != (p < 0)) {
         if (result == 0.) {
