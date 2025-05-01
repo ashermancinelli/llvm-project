@@ -142,7 +142,7 @@ static void genRuntimeSetBounds(fir::FirOpBuilder &builder, mlir::Location loc,
                                       upperBound};
   llvm::SmallVector<mlir::Value> operands;
   for (auto [fst, snd] : llvm::zip(args, callee.getFunctionType().getInputs()))
-    operands.emplace_back(builder.createConvert(loc, snd, fst));
+    operands.emplace_back(builder.createConvertWithVolatileCast(loc, snd, fst));
   builder.create<fir::CallOp>(loc, callee, operands);
 }
 
@@ -196,7 +196,7 @@ static mlir::Value genRuntimeAllocate(fir::FirOpBuilder &builder,
   args.push_back(errorManager.sourceLine);
   llvm::SmallVector<mlir::Value> operands;
   for (auto [fst, snd] : llvm::zip(args, callee.getFunctionType().getInputs()))
-    operands.emplace_back(builder.createConvert(loc, snd, fst));
+    operands.emplace_back(builder.createConvertWithVolatileCast(loc, snd, fst));
   return builder.create<fir::CallOp>(loc, callee, operands).getResult(0);
 }
 
@@ -219,7 +219,7 @@ static mlir::Value genRuntimeAllocateSource(fir::FirOpBuilder &builder,
       errorManager.sourceFile, errorManager.sourceLine};
   llvm::SmallVector<mlir::Value> operands;
   for (auto [fst, snd] : llvm::zip(args, callee.getFunctionType().getInputs()))
-    operands.emplace_back(builder.createConvert(loc, snd, fst));
+    operands.emplace_back(builder.createConvertWithVolatileCast(loc, snd, fst));
   return builder.create<fir::CallOp>(loc, callee, operands).getResult(0);
 }
 
@@ -240,7 +240,7 @@ static void genRuntimeAllocateApplyMold(fir::FirOpBuilder &builder,
           loc, callee.getFunctionType().getInputs()[2], rank)};
   llvm::SmallVector<mlir::Value> operands;
   for (auto [fst, snd] : llvm::zip(args, callee.getFunctionType().getInputs()))
-    operands.emplace_back(builder.createConvert(loc, snd, fst));
+    operands.emplace_back(builder.createConvertWithVolatileCast(loc, snd, fst));
   builder.create<fir::CallOp>(loc, callee, operands);
 }
 
