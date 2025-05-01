@@ -50,6 +50,7 @@
 #include "flang/Optimizer/Dialect/FIRAttr.h"
 #include "flang/Optimizer/Dialect/FIRDialect.h"
 #include "flang/Optimizer/Dialect/FIROps.h"
+#include "flang/Optimizer/Dialect/FIRType.h"
 #include "flang/Optimizer/Dialect/Support/FIRContext.h"
 #include "flang/Optimizer/HLFIR/HLFIROps.h"
 #include "flang/Optimizer/Support/DataLayout.h"
@@ -5724,7 +5725,7 @@ private:
         mlir::Value preAlloc = primaryFuncResultStorage;
         mlir::Type resTy = primaryFuncResultStorage.getType();
         mlir::Type symTy = genType(altResult);
-        mlir::Type wrappedSymTy = fir::ReferenceType::get(symTy);
+        mlir::Type wrappedSymTy = fir::ReferenceType::get(symTy, fir::isa_volatile_type(resTy));
         if (resTy != wrappedSymTy) {
           // check size of the pointed to type so we can't overflow by writing
           // double precision to a single precision allocation, etc
