@@ -215,10 +215,15 @@ static std::pair<mlir::Type, mlir::Value> updateDeclareInputTypeWithVolatility(
                          fir::FortranVariableFlagsEnum::fortran_volatile)) {
     const bool isPointer = bitEnumContainsAny(
         fortran_attrs.getFlags(), fir::FortranVariableFlagsEnum::pointer);
+        // TODO: also check for allocatable, etc...
+        // when we have an allocatable, we have a ref of a box. both the ref and the
+        // box need to be casted to volatile.
     auto updateType = [&](auto t) {
       using FIRT = decltype(t);
       // If an entity is a pointer, the entity it points to is volatile, as far
       // as consumers of the pointer are concerned.
+      // If we have an allocatable, we have a ref of a box. both the ref and the
+      // box need to be casted to volatile as well.
       auto elementType = t.getEleTy();
       const bool elementTypeIsVolatile =
           isPointer || fir::isa_volatile_type(elementType);

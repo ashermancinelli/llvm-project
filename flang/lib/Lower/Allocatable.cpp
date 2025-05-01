@@ -163,8 +163,8 @@ static void genRuntimeInitCharacter(fir::FirOpBuilder &builder,
     fir::emitFatalError(
         loc, "AllocatableInitCharacter runtime interface not as expected");
   llvm::SmallVector<mlir::Value> args;
-  args.push_back(builder.createConvert(loc, inputTypes[0], box.getAddr()));
-  args.push_back(builder.createConvert(loc, inputTypes[1], len));
+  args.push_back(builder.createConvertWithVolatileCast(loc, inputTypes[0], box.getAddr()));
+  args.push_back(builder.createConvertWithVolatileCast(loc, inputTypes[1], len));
   if (kind == 0)
     kind = mlir::cast<fir::CharacterType>(box.getEleTy()).getFKind();
   args.push_back(builder.createIntegerConstant(loc, inputTypes[2], kind));
@@ -670,8 +670,8 @@ private:
     llvm::ArrayRef<mlir::Type> inputTypes =
         callee.getFunctionType().getInputs();
     llvm::SmallVector<mlir::Value> args;
-    args.push_back(builder.createConvert(loc, inputTypes[0], box.getAddr()));
-    args.push_back(builder.createConvert(loc, inputTypes[1], typeDescAddr));
+    args.push_back(builder.createConvertWithVolatileCast(loc, inputTypes[0], box.getAddr()));
+    args.push_back(builder.createConvertWithVolatileCast(loc, inputTypes[1], typeDescAddr));
     mlir::Value rankValue =
         builder.createIntegerConstant(loc, inputTypes[2], rank);
     mlir::Value corankValue =
@@ -697,7 +697,7 @@ private:
     llvm::ArrayRef<mlir::Type> inputTypes =
         callee.getFunctionType().getInputs();
     llvm::SmallVector<mlir::Value> args;
-    args.push_back(builder.createConvert(loc, inputTypes[0], box.getAddr()));
+    args.push_back(builder.createConvertWithVolatileCast(loc, inputTypes[0], box.getAddr()));
     mlir::Value categoryValue = builder.createIntegerConstant(
         loc, inputTypes[1], static_cast<int32_t>(category));
     mlir::Value kindValue =

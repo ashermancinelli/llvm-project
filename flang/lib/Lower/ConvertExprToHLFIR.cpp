@@ -215,8 +215,12 @@ private:
     if (charType && charType.hasDynamicLen())
       return fir::BoxCharType::get(charType.getContext(), charType.getFKind());
 
-    // When volatile is enabled, enable volatility on the designatory type.
     bool isVolatile = false;
+
+    if (partInfo.base.has_value()) {
+      mlir::Type baseType = partInfo.base.value().getType();
+      isVolatile = fir::isa_volatile_type(baseType);
+    }
 
     // Check if this should be a volatile reference
     if constexpr (std::is_same_v<std::decay_t<T>,
@@ -466,8 +470,9 @@ private:
     // hlfir.designate result will be a pointer/allocatable.
     PartInfo partInfo;
     mlir::Type componentType = visitComponentImpl(component, partInfo).second;
-    const auto isVolatile =
-        fir::isa_volatile_type(partInfo.base.value().getBase().getType());
+    // Check for volatility from both the base and the component itself
+    bool isVolatile = fir::isa_volatile_type(partInfo.base.value().getBase().getType()) ||
+                      component.GetLastSymbol().attrs().test(Fortran::semantics::Attr::VOLATILE);
     mlir::Type designatorType =
         fir::ReferenceType::get(componentType, isVolatile);
     fir::FortranVariableFlagsAttr attributes =
