@@ -690,40 +690,134 @@ func.func @compare_complex_other(%a : complex<f64>, %b : complex<f64>) -> i1 {
 
 // Test `fir.convert` operation conversion from Float type.
 
-func.func @convert_from_float(%arg0 : f32) {
+func.func @convert_from_float_to_float(%arg0 : f32) {
   %0 = fir.convert %arg0 : (f32) -> f16
   %1 = fir.convert %arg0 : (f32) -> f32
   %2 = fir.convert %arg0 : (f32) -> f64
   %3 = fir.convert %arg0 : (f32) -> f80
   %4 = fir.convert %arg0 : (f32) -> f128
-  %5 = fir.convert %arg0 : (f32) -> i1
-  %6 = fir.convert %arg0 : (f32) -> i8
-  %7 = fir.convert %arg0 : (f32) -> i16
-  %8 = fir.convert %arg0 : (f32) -> i32
-  %9 = fir.convert %arg0 : (f32) -> i64
-  %10 = fir.convert %arg0 : (f32) -> ui8
-  %11 = fir.convert %arg0 : (f32) -> ui16
-  %12 = fir.convert %arg0 : (f32) -> ui32
-  %13 = fir.convert %arg0 : (f32) -> ui64
   return
 }
 
-// CHECK-LABEL: convert_from_float(
+// CHECK-LABEL: convert_from_float_to_float(
 // CHECK-SAME:                     %[[ARG0:.*]]: f32
 // CHECK:         %{{.*}} = llvm.fptrunc %[[ARG0]] : f32 to f16
 // CHECK-NOT:     f32 to f32
 // CHECK:         %{{.*}} = llvm.fpext %[[ARG0]] : f32 to f64
 // CHECK:         %{{.*}} = llvm.fpext %[[ARG0]] : f32 to f80
 // CHECK:         %{{.*}} = llvm.fpext %[[ARG0]] : f32 to f128
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptosi.sat"(%[[ARG0]]) : (f32) -> i1
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptosi.sat"(%[[ARG0]]) : (f32) -> i8
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptosi.sat"(%[[ARG0]]) : (f32) -> i16
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptosi.sat"(%[[ARG0]]) : (f32) -> i32
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptosi.sat"(%[[ARG0]]) : (f32) -> i64
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptoui.sat"(%[[ARG0]]) : (f32) -> i8
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptoui.sat"(%[[ARG0]]) : (f32) -> i16
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptoui.sat"(%[[ARG0]]) : (f32) -> i32
-// CHECK:         %{{.*}} = llvm.call_intrinsic "llvm.fptoui.sat"(%[[ARG0]]) : (f32) -> i64
+
+func.func @convert_from_f16_to_integer(%arg0 : f16) {
+  %1 = fir.convert %arg0 : (f16) -> i1
+  %2 = fir.convert %arg0 : (f16) -> i8
+  %3 = fir.convert %arg0 : (f16) -> i16
+  %4 = fir.convert %arg0 : (f16) -> i32
+  %5 = fir.convert %arg0 : (f16) -> i64
+  %6 = fir.convert %arg0 : (f16) -> i128
+  %7 = fir.convert %arg0 : (f16) -> ui8
+  %8 = fir.convert %arg0 : (f16) -> ui16
+  %9 = fir.convert %arg0 : (f16) -> ui32
+  %10 = fir.convert %arg0 : (f16) -> ui64
+  %11 = fir.convert %arg0 : (f16) -> ui128
+  return
+}
+
+// CHECK-LABEL: @convert_from_f16_to_integer(%arg0:
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f16) -> i1
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f16) -> i8
+// CHECK: llvm.fptosi %arg0 : f16 to i16
+// CHECK: llvm.fptosi %arg0 : f16 to i32
+// CHECK: llvm.fptosi %arg0 : f16 to i64
+// CHECK: llvm.fptosi %arg0 : f16 to i128
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f16) -> i8
+// CHECK: llvm.fptoui %arg0 : f16 to i16
+// CHECK: llvm.fptoui %arg0 : f16 to i32
+// CHECK: llvm.fptoui %arg0 : f16 to i64
+// CHECK: llvm.fptoui %arg0 : f16 to i128
+
+func.func @convert_from_f32_to_integer(%arg0 : f32) {
+  %1 = fir.convert %arg0 : (f32) -> i1
+  %2 = fir.convert %arg0 : (f32) -> i8
+  %3 = fir.convert %arg0 : (f32) -> i16
+  %4 = fir.convert %arg0 : (f32) -> i32
+  %5 = fir.convert %arg0 : (f32) -> i64
+  %6 = fir.convert %arg0 : (f32) -> i128
+  %7 = fir.convert %arg0 : (f32) -> ui8
+  %8 = fir.convert %arg0 : (f32) -> ui16
+  %9 = fir.convert %arg0 : (f32) -> ui32
+  %10 = fir.convert %arg0 : (f32) -> ui64
+  %11 = fir.convert %arg0 : (f32) -> ui128
+  return
+}
+
+// CHECK-LABEL: @convert_from_f32_to_integer(%arg0:
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f32) -> i1
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f32) -> i8
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f32) -> i16
+// CHECK: llvm.fptosi %arg0 : f32 to i32
+// CHECK: llvm.fptosi %arg0 : f32 to i64
+// CHECK: llvm.fptosi %arg0 : f32 to i128
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f32) -> i8
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f32) -> i16
+// CHECK: llvm.fptoui %arg0 : f32 to i32
+// CHECK: llvm.fptoui %arg0 : f32 to i64
+// CHECK: llvm.fptoui %arg0 : f32 to i128
+
+func.func @convert_from_f64_to_integer(%arg0 : f64) {
+  %1 = fir.convert %arg0 : (f64) -> i1
+  %2 = fir.convert %arg0 : (f64) -> i8
+  %3 = fir.convert %arg0 : (f64) -> i16
+  %4 = fir.convert %arg0 : (f64) -> i32
+  %5 = fir.convert %arg0 : (f64) -> i64
+  %6 = fir.convert %arg0 : (f64) -> i128
+  %7 = fir.convert %arg0 : (f64) -> ui8
+  %8 = fir.convert %arg0 : (f64) -> ui16
+  %9 = fir.convert %arg0 : (f64) -> ui32
+  %10 = fir.convert %arg0 : (f64) -> ui64
+  %11 = fir.convert %arg0 : (f64) -> ui128
+  return
+}
+
+// CHECK-LABEL: @convert_from_f64_to_integer(%arg0:
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f64) -> i1
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f64) -> i8
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f64) -> i16
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f64) -> i32
+// CHECK: llvm.fptosi %arg0 : f64 to i64
+// CHECK: llvm.fptosi %arg0 : f64 to i128
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f64) -> i8
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f64) -> i16
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f64) -> i32
+// CHECK: llvm.fptoui %arg0 : f64 to i64
+// CHECK: llvm.fptoui %arg0 : f64 to i128
+
+func.func @convert_from_f128_to_integer(%arg0 : f128) {
+  %1 = fir.convert %arg0 : (f128) -> i1
+  %2 = fir.convert %arg0 : (f128) -> i8
+  %3 = fir.convert %arg0 : (f128) -> i16
+  %4 = fir.convert %arg0 : (f128) -> i32
+  %5 = fir.convert %arg0 : (f128) -> i64
+  %6 = fir.convert %arg0 : (f128) -> i128
+  %7 = fir.convert %arg0 : (f128) -> ui8
+  %8 = fir.convert %arg0 : (f128) -> ui16
+  %9 = fir.convert %arg0 : (f128) -> ui32
+  %10 = fir.convert %arg0 : (f128) -> ui64
+  %11 = fir.convert %arg0 : (f128) -> ui128
+  return
+}
+
+// CHECK-LABEL: @convert_from_f128_to_integer(%arg0:
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f128) -> i1
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f128) -> i8
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f128) -> i16
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f128) -> i32
+// CHECK: llvm.call_intrinsic "llvm.fptosi.sat"(%{{.+}}) : (f128) -> i64
+// CHECK: llvm.fptosi %arg0 : f128 to i128
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f128) -> i8
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f128) -> i16
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f128) -> i32
+// CHECK: llvm.call_intrinsic "llvm.fptoui.sat"(%{{.+}}) : (f128) -> i64
+// CHECK: llvm.fptoui %arg0 : f128 to i128
 
 // -----
 
