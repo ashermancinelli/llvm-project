@@ -387,7 +387,9 @@ public:
     } else {
       if (hlfirBaseType != firBase.getType()) {
         declareOp.emitOpError()
-            << "unhandled HLFIR variable type '" << hlfirBaseType << "'\n";
+            << "unhandled HLFIR variable type '" << hlfirBaseType
+            << "' does not match fir type '" << firBase.getType()
+            << "' with memref '" << memref << "'\n";
         return mlir::failure();
       }
       hlfirBase = firBase;
@@ -418,10 +420,13 @@ class DesignateOpConversion
       firstElementIndices.push_back(indices[i]);
       i = i + (isTriplet ? 3 : 1);
     }
-    mlir::Type arrayCoorType = fir::ReferenceType::get(baseEleTy);
+    auto designateResultType = designate.getResult().getType();
+    auto isVolatile =
+        mlir::isa<fir::VolatileReferenceType>(designateResultType);
+    mlir::Type refTy = fir::ReferenceType::get(baseEleTy, isVolatile);
     base = builder.create<fir::ArrayCoorOp>(
-        loc, arrayCoorType, base, shape,
-        /*slice=*/mlir::Value{}, firstElementIndices, firBaseTypeParameters);
+        loc, refTy, base, shape, /*slice=*/mlir::Value{},
+        firstElementIndices, firBaseTypeParameters);
     return base;
   }
 
@@ -436,7 +441,6 @@ public:
     fir::FirOpBuilder builder(rewriter, designate.getOperation());
 
     hlfir::Entity baseEntity(designate.getMemref());
-
     if (baseEntity.isMutableBox())
       TODO(loc, "hlfir::designate load of pointer or allocatable");
 
@@ -581,8 +585,9 @@ public:
     // shape. The base may be an array, or a scalar.
     mlir::Type resultAddressType = designateResultType;
     if (auto boxCharType =
-            mlir::dyn_cast<fir::BoxCharType>(designateResultType))
+            mlir::dyn_cast<fir::BoxCharType>(designateResultType)) {
       resultAddressType = fir::ReferenceType::get(boxCharType.getEleTy());
+    }
 
     // Array element indexing.
     if (!designate.getIndices().empty()) {

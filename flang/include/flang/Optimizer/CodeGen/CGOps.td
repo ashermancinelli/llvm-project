@@ -199,7 +199,7 @@ def fircg_XArrayCoorOp : fircg_Op<"ext_array_coor", [AttrSizedOperandSegments]> 
     Variadic<AnyCoordinateType>:$indices,
     Variadic<AnyIntegerType>:$lenParams
   );
-  let results = (outs fir_ReferenceType);
+  let results = (outs AnyReferenceType);
 
   let assemblyFormat = [{
     $memref (`(`$shape^`)`)? (`origin` $shift^)? (`[`$slice^`]`)?

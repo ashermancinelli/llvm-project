@@ -1766,7 +1766,7 @@ def fir_ArrayCoorOp : fir_Op<"array_coor",
     Variadic<AnyIntegerType>:$typeparams
   );
 
-  let results = (outs fir_ReferenceType);
+  let results = (outs AnyReferenceType);
 
   let assemblyFormat = [{
     $memref (`(`$shape^`)`)? (`[`$slice^`]`)? $indices (`typeparams`

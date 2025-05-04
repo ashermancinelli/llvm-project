@@ -66,8 +66,8 @@ static bool isaIntegerType(mlir::Type ty) {
 
 bool verifyRecordMemberType(mlir::Type ty) {
   return !mlir::isa<BoxCharType, ShapeType, ShapeShiftType, ShiftType,
-                    SliceType, FieldType, LenType, ReferenceType, TypeDescType>(
-      ty);
+                    SliceType, FieldType, LenType, ReferenceType, TypeDescType,
+                    VolatileReferenceType>(ty);
 }
 
 bool verifySameLists(llvm::ArrayRef<RecordType::TypePair> a1,
@@ -217,15 +217,17 @@ mlir::Type getDerivedType(mlir::Type ty) {
 
 mlir::Type dyn_cast_ptrEleTy(mlir::Type t) {
   return llvm::TypeSwitch<mlir::Type, mlir::Type>(t)
-      .Case<fir::ReferenceType, fir::PointerType, fir::HeapType,
-            fir::LLVMPointerType>([](auto p) { return p.getEleTy(); })
+      .Case<fir::ReferenceType, fir::VolatileReferenceType, fir::PointerType,
+            fir::HeapType, fir::LLVMPointerType>(
+          [](auto p) { return p.getEleTy(); })
       .Default([](mlir::Type) { return mlir::Type{}; });
 }
 
 mlir::Type dyn_cast_ptrOrBoxEleTy(mlir::Type t) {
   return llvm::TypeSwitch<mlir::Type, mlir::Type>(t)
-      .Case<fir::ReferenceType, fir::PointerType, fir::HeapType,
-            fir::LLVMPointerType>([](auto p) { return p.getEleTy(); })
+      .Case<fir::ReferenceType, fir::VolatileReferenceType, fir::PointerType,
+            fir::HeapType, fir::LLVMPointerType>(
+          [](auto p) { return p.getEleTy(); })
       .Case<fir::BaseBoxType>(
           [](auto p) { return unwrapRefType(p.getEleTy()); })
       .Default([](mlir::Type) { return mlir::Type{}; });
@@ -596,6 +598,10 @@ std::string getTypeAsString(mlir::Type ty, const fir::KindMapping &kindMap,
       } else if (auto refTy = mlir::dyn_cast_or_null<fir::ReferenceType>(ty)) {
         name << "ref_";
         ty = refTy.getEleTy();
+      } else if (auto refTy =
+                     mlir::dyn_cast_or_null<fir::VolatileReferenceType>(ty)) {
+        name << "volatile_ref_";
+        ty = refTy.getEleTy();
       } else if (auto ptrTy = mlir::dyn_cast_or_null<fir::PointerType>(ty)) {
         name << "ptr_";
         ty = ptrTy.getEleTy();
@@ -650,11 +656,12 @@ mlir::Type changeElementType(mlir::Type type, mlir::Type newElementType,
         return fir::SequenceType::get(seqTy.getShape(), newElementType);
       })
       .Case<fir::PointerType, fir::HeapType, fir::ReferenceType,
-            fir::ClassType>([&](auto t) -> mlir::Type {
-        using FIRT = decltype(t);
-        return FIRT::get(
-            changeElementType(t.getEleTy(), newElementType, turnBoxIntoClass));
-      })
+            fir::VolatileReferenceType, fir::ClassType>(
+          [&](auto t) -> mlir::Type {
+            using FIRT = decltype(t);
+            return FIRT::get(changeElementType(t.getEleTy(), newElementType,
+                                               turnBoxIntoClass));
+          })
       .Case<fir::BoxType>([&](fir::BoxType t) -> mlir::Type {
         mlir::Type newInnerType =
             changeElementType(t.getEleTy(), newElementType, false);
@@ -725,13 +732,16 @@ BoxProcType::verify(llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
   if (auto refTy = mlir::dyn_cast<ReferenceType>(eleTy))
     if (mlir::isa<mlir::FunctionType>(refTy))
       return mlir::success();
+  if (auto refTy = mlir::dyn_cast<VolatileReferenceType>(eleTy))
+    if (mlir::isa<mlir::FunctionType>(refTy))
+      return mlir::success();
   return emitError() << "invalid type for boxproc" << eleTy << '\n';
 }
 
 static bool cannotBePointerOrHeapElementType(mlir::Type eleTy) {
   return mlir::isa<BoxType, BoxCharType, BoxProcType, ShapeType, ShapeShiftType,
                    SliceType, FieldType, LenType, HeapType, PointerType,
-                   ReferenceType, TypeDescType>(eleTy);
+                   ReferenceType, VolatileReferenceType, TypeDescType>(eleTy);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1066,11 +1076,15 @@ void fir::ReferenceType::print(mlir::AsmPrinter &printer) const {
   printer << "<" << getEleTy() << '>';
 }
 
+mlir::Type fir::ReferenceType::get(mlir::Type t, bool isVolatile) {
+  return isVolatile ? (mlir::Type)fir::VolatileReferenceType::get(t) : (mlir::Type)fir::ReferenceType::get(t);
+}
+
 llvm::LogicalResult fir::ReferenceType::verify(
     llvm::function_ref<mlir::InFlightDiagnostic()> emitError,
     mlir::Type eleTy) {
   if (mlir::isa<ShapeType, ShapeShiftType, SliceType, FieldType, LenType,
-                ReferenceType, TypeDescType>(eleTy))
+                ReferenceType, VolatileReferenceType, TypeDescType>(eleTy))
     return emitError() << "cannot build a reference to type: " << eleTy << '\n';
   return mlir::success();
 }
@@ -1147,7 +1161,8 @@ llvm::LogicalResult fir::SequenceType::verify(
   // DIMENSION attribute can only be applied to an intrinsic or record type
   if (mlir::isa<BoxType, BoxCharType, BoxProcType, ShapeType, ShapeShiftType,
                 ShiftType, SliceType, FieldType, LenType, HeapType, PointerType,
-                ReferenceType, TypeDescType, SequenceType>(eleTy))
+                ReferenceType, VolatileReferenceType, TypeDescType,
+                SequenceType>(eleTy))
     return emitError() << "cannot build an array of this element type: "
                        << eleTy << '\n';
   return mlir::success();
@@ -1220,7 +1235,7 @@ llvm::LogicalResult fir::TypeDescType::verify(
     mlir::Type eleTy) {
   if (mlir::isa<BoxType, BoxCharType, BoxProcType, ShapeType, ShapeShiftType,
                 ShiftType, SliceType, FieldType, LenType, ReferenceType,
-                TypeDescType>(eleTy))
+                VolatileReferenceType, TypeDescType>(eleTy))
     return emitError() << "cannot build a type descriptor of type: " << eleTy
                        << '\n';
   return mlir::success();
@@ -1319,11 +1334,12 @@ changeTypeShape(mlir::Type type,
           return fir::SequenceType::get(*newShape, seqTy.getEleTy());
         return seqTy.getEleTy();
       })
-      .Case<fir::PointerType, fir::HeapType, fir::ReferenceType, fir::BoxType,
-            fir::ClassType>([&](auto t) -> mlir::Type {
-        using FIRT = decltype(t);
-        return FIRT::get(changeTypeShape(t.getEleTy(), newShape));
-      })
+      .Case<fir::PointerType, fir::HeapType, fir::ReferenceType,
+            fir::VolatileReferenceType, fir::BoxType, fir::ClassType>(
+          [&](auto t) -> mlir::Type {
+            using FIRT = decltype(t);
+            return FIRT::get(changeTypeShape(t.getEleTy(), newShape));
+          })
       .Default([&](mlir::Type t) -> mlir::Type {
         assert((fir::isa_trivial(t) || llvm::isa<fir::RecordType>(t) ||
                 llvm::isa<mlir::NoneType>(t) ||
@@ -1394,10 +1410,13 @@ void FIROpsDialect::registerTypes() {
   addTypes<BoxType, BoxCharType, BoxProcType, CharacterType, ClassType,
            FieldType, HeapType, fir::IntegerType, LenType, LogicalType,
            LLVMPointerType, PointerType, RecordType, ReferenceType,
-           SequenceType, ShapeType, ShapeShiftType, ShiftType, SliceType,
-           TypeDescType, fir::VectorType, fir::DummyScopeType>();
+           VolatileReferenceType, SequenceType, ShapeType, ShapeShiftType,
+           ShiftType, SliceType, TypeDescType, fir::VectorType,
+           fir::DummyScopeType>();
   fir::ReferenceType::attachInterface<
       OpenMPPointerLikeModel<fir::ReferenceType>>(*getContext());
+  fir::VolatileReferenceType::attachInterface<
+      OpenMPPointerLikeModel<fir::VolatileReferenceType>>(*getContext());
   fir::PointerType::attachInterface<OpenMPPointerLikeModel<fir::PointerType>>(
       *getContext());
   fir::HeapType::attachInterface<OpenMPPointerLikeModel<fir::HeapType>>(
@@ -1467,4 +1486,9 @@ fir::getTypeSizeAndAlignmentOrCrash(mlir::Location loc, mlir::Type ty,
   if (result)
     return *result;
   TODO(loc, "computing size of a component");
+}
+
+llvm::LogicalResult fir::VolatileReferenceType::verify(
+    llvm::function_ref<mlir::InFlightDiagnostic()>, mlir::Type) {
+  return mlir::success();
 }
