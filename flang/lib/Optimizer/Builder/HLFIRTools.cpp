@@ -200,8 +200,13 @@ static bool isShapeWithLowerBounds(mlir::Value shape) {
 }
 
 bool hlfir::Entity::mayHaveNonDefaultLowerBounds() const {
-  if (!isBoxAddressOrValue() || isScalar())
+  if (!isBoxAddressOrValue() || isScalar()) {
+    if (auto designate = getDefiningOp<hlfir::DesignateOp>()) {
+      if (isShapeWithLowerBounds(designate.getComponentShape()))
+        return true;
+    }
     return false;
+  }
   if (isMutableBox())
     return true;
   if (auto varIface = getIfVariableInterface())

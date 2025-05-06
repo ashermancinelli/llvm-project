@@ -353,3 +353,56 @@ func.func @_QPtest_expr_rhs(%arg0: !fir.ref<!fir.box<!fir.ptr<!fir.array<?x!fir.
 // CHECK:           hlfir.destroy %[[VAL_10]] : !hlfir.expr<?x!fir.logical<4>>
 // CHECK:           return
 // CHECK:         }
+
+// Test that derived type component designators with non-default lower bounds are handled:
+
+// integer,parameter::l=-2,u=-1
+// type st1
+//   complex st11(l:u)
+// end type
+// complex,dimension(l:u)::tt1p1
+// type(st1),dimension(l:u)::tt3p1
+// tt1p1=(/ (1,1),(2,2) /)
+// tt3p1= (/ (st1( tt1p1 ) , m=1,2)  /)
+// end
+
+func.func @component_designator_with_non_default_lower_bounds() {
+  %c-3 = arith.constant -3 : index
+  %c-2 = arith.constant -2 : index
+  %c1 = arith.constant 1 : index
+  %c2 = arith.constant 2 : index
+
+  %0 = fir.alloca !fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}> {uniq_name = "lhs_struct"}
+  %13 = fir.alloca !fir.array<2xcomplex<f32>> {uniq_name = "rhs_array"}
+  %14 = fir.shape_shift %c-2, %c2 : (index, index) -> !fir.shapeshift<1>
+
+  %15:2 = hlfir.declare %13(%14) {uniq_name = "rhs_decl"} : (!fir.ref<!fir.array<2xcomplex<f32>>>, !fir.shapeshift<1>) -> (!fir.box<!fir.array<2xcomplex<f32>>>, !fir.ref<!fir.array<2xcomplex<f32>>>)
+  %36:2 = hlfir.declare %0 {uniq_name = "lhs_decl"} : (!fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>) -> (!fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>, !fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>)
+  %39 = hlfir.designate %36#0{"st11"} <%14> shape %14 : (!fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>, !fir.shapeshift<1>, !fir.shapeshift<1>) -> !fir.ref<!fir.array<2xcomplex<f32>>>
+
+  hlfir.assign %15#0 to %39 : !fir.box<!fir.array<2xcomplex<f32>>>, !fir.ref<!fir.array<2xcomplex<f32>>>
+
+  return
+}
+
+// CHECK-LABEL:   func.func @component_designator_with_non_default_lower_bounds() {
+// CHECK:           %[[VAL_0:.*]] = arith.constant -3 : index
+// CHECK:           %[[VAL_1:.*]] = arith.constant 1 : index
+// CHECK:           %[[VAL_2:.*]] = arith.constant -2 : index
+// CHECK:           %[[VAL_3:.*]] = arith.constant 2 : index
+// CHECK:           %[[VAL_4:.*]] = fir.alloca !fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}> {uniq_name = "lhs_struct"}
+// CHECK:           %[[VAL_5:.*]] = fir.alloca !fir.array<2xcomplex<f32>> {uniq_name = "rhs_array"}
+// CHECK:           %[[VAL_6:.*]] = fir.shape_shift %[[VAL_2]], %[[VAL_3]] : (index, index) -> !fir.shapeshift<1>
+// CHECK:           %[[VAL_7:.*]]:2 = hlfir.declare %[[VAL_5]](%[[VAL_6]]) {uniq_name = "rhs_decl"} : (!fir.ref<!fir.array<2xcomplex<f32>>>, !fir.shapeshift<1>) -> (!fir.box<!fir.array<2xcomplex<f32>>>, !fir.ref<!fir.array<2xcomplex<f32>>>)
+// CHECK:           %[[VAL_8:.*]]:2 = hlfir.declare %[[VAL_4]] {uniq_name = "lhs_decl"} : (!fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>) -> (!fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>, !fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>)
+// CHECK:           %[[VAL_9:.*]] = hlfir.designate %[[VAL_8]]#0{"st11"} <%[[VAL_6]]>   shape %[[VAL_6]] : (!fir.ref<!fir.type<_QFTst1{st11:!fir.array<2xcomplex<f32>>}>>, !fir.shapeshift<1>, !fir.shapeshift<1>) -> !fir.ref<!fir.array<2xcomplex<f32>>>
+// CHECK:           fir.do_loop %[[VAL_10:.*]] = %[[VAL_1]] to %[[VAL_3]] step %[[VAL_1]] unordered {
+// CHECK:             %[[VAL_11:.*]] = arith.addi %[[VAL_10]], %[[VAL_0]] : index
+// CHECK:             %[[VAL_12:.*]] = hlfir.designate %[[VAL_7]]#0 (%[[VAL_11]])  : (!fir.box<!fir.array<2xcomplex<f32>>>, index) -> !fir.ref<complex<f32>>
+// CHECK:             %[[VAL_13:.*]] = fir.load %[[VAL_12]] : !fir.ref<complex<f32>>
+// CHECK:             %[[VAL_14:.*]] = arith.addi %[[VAL_10]], %[[VAL_0]] : index
+// CHECK:             %[[VAL_15:.*]] = hlfir.designate %[[VAL_9]] (%[[VAL_14]])  : (!fir.ref<!fir.array<2xcomplex<f32>>>, index) -> !fir.ref<complex<f32>>
+// CHECK:             hlfir.assign %[[VAL_13]] to %[[VAL_15]] : complex<f32>, !fir.ref<complex<f32>>
+// CHECK:           }
+// CHECK:           return
+// CHECK:         }
