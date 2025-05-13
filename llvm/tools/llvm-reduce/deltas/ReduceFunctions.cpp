@@ -32,7 +32,7 @@ void llvm::reduceFunctionsDeltaPass(Oracle &O, ReducerWorkItem &WorkItem) {
     // Intrinsics don't have function bodies that are useful to
     // reduce. Additionally, intrinsics may have additional operand
     // constraints. But, do drop intrinsics that are not referenced.
-    if ((!F.isIntrinsic() || F.use_empty()) && !hasAliasOrBlockAddressUse(F) &&
+    if ((!F.isIntrinsic() || F.use_empty()) && !hasAliasUse(F) &&
         !O.shouldKeep())
       FuncsToRemove.insert(&F);
   }
@@ -42,7 +42,7 @@ void llvm::reduceFunctionsDeltaPass(Oracle &O, ReducerWorkItem &WorkItem) {
   });
 
   // Then, drop body of each of them. We want to batch this and do nothing else
-  // here so that minimal number of remaining exteranal uses will remain.
+  // here so that minimal number of remaining external uses will remain.
   for (Constant *F : FuncsToRemove)
     F->dropAllReferences();
 

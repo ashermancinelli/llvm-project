@@ -47,13 +47,10 @@
 
 using namespace llvm;
 
-namespace llvm {
-namespace SPIRV {
+namespace llvm::SPIRV {
 #define GET_BuiltinGroup_DECL
 #include "SPIRVGenTables.inc"
-} // namespace SPIRV
-void initializeSPIRVEmitIntrinsicsPass(PassRegistry &);
-} // namespace llvm
+} // namespace llvm::SPIRV
 
 namespace {
 
@@ -200,12 +197,8 @@ class SPIRVEmitIntrinsics
 
 public:
   static char ID;
-  SPIRVEmitIntrinsics() : ModulePass(ID) {
-    initializeSPIRVEmitIntrinsicsPass(*PassRegistry::getPassRegistry());
-  }
-  SPIRVEmitIntrinsics(SPIRVTargetMachine *_TM) : ModulePass(ID), TM(_TM) {
-    initializeSPIRVEmitIntrinsicsPass(*PassRegistry::getPassRegistry());
-  }
+  SPIRVEmitIntrinsics(SPIRVTargetMachine *TM = nullptr)
+      : ModulePass(ID), TM(TM) {}
   Instruction *visitInstruction(Instruction &I) { return &I; }
   Instruction *visitSwitchInst(SwitchInst &I);
   Instruction *visitGetElementPtrInst(GetElementPtrInst &I);
@@ -293,8 +286,7 @@ static void setInsertPointAfterDef(IRBuilder<> &B, Instruction *I) {
 }
 
 static bool requireAssignType(Instruction *I) {
-  IntrinsicInst *Intr = dyn_cast<IntrinsicInst>(I);
-  if (Intr) {
+  if (const auto *Intr = dyn_cast<IntrinsicInst>(I)) {
     switch (Intr->getIntrinsicID()) {
     case Intrinsic::invariant_start:
     case Intrinsic::invariant_end:
@@ -671,14 +663,27 @@ Type *SPIRVEmitIntrinsics::deduceElementTypeHelper(
 
     auto *II = dyn_cast<IntrinsicInst>(I);
     if (II && II->getIntrinsicID() == Intrinsic::spv_resource_getpointer) {
-      auto *ImageType = cast<TargetExtType>(II->getOperand(0)->getType());
-      assert(ImageType->getTargetExtName() == "spirv.Image");
-      (void)ImageType;
-      if (II->hasOneUse()) {
-        auto *U = *II->users().begin();
-        Ty = cast<Instruction>(U)->getAccessType();
-        assert(Ty && "Unable to get type for resource pointer.");
+      auto *HandleType = cast<TargetExtType>(II->getOperand(0)->getType());
+      if (HandleType->getTargetExtName() == "spirv.Image") {
+        if (II->hasOneUse()) {
+          auto *U = *II->users().begin();
+          Ty = cast<Instruction>(U)->getAccessType();
+          assert(Ty && "Unable to get type for resource pointer.");
+        }
+      } else if (HandleType->getTargetExtName() == "spirv.VulkanBuffer") {
+        // This call is supposed to index into an array
+        Ty = HandleType->getTypeParameter(0);
+        assert(Ty->isArrayTy() &&
+               "spv_resource_getpointer indexes into an array, so the type of "
+               "the buffer should be an array.");
+        Ty = Ty->getArrayElementType();
+      } else {
+        llvm_unreachable("Unknown handle type for spv_resource_getpointer.");
       }
+    } else if (II && II->getIntrinsicID() ==
+                         Intrinsic::spv_generic_cast_to_ptr_explicit) {
+      Ty = deduceElementTypeHelper(CI->getArgOperand(0), Visited,
+                                   UnknownElemTypeI8);
     } else if (Function *CalledF = CI->getCalledFunction()) {
       std::string DemangledName =
           getOclOrSpirvBuiltinDemangledName(CalledF->getName());
@@ -725,7 +730,7 @@ Type *SPIRVEmitIntrinsics::deduceNestedTypeHelper(
   if (!Visited.insert(U).second)
     return OrigTy;
 
-  if (dyn_cast<StructType>(OrigTy)) {
+  if (isa<StructType>(OrigTy)) {
     SmallVector<Type *> Tys;
     bool Change = false;
     for (unsigned i = 0; i < U->getNumOperands(); ++i) {
@@ -1119,7 +1124,8 @@ void SPIRVEmitIntrinsics::deduceOperandElementType(
       continue;
     Value *OpTyVal = getNormalizedPoisonValue(KnownElemTy);
     Type *OpTy = Op->getType();
-    if (!Ty || AskTy || isUntypedPointerTy(Ty) || isTodoType(Op)) {
+    if (Op->hasUseList() &&
+        (!Ty || AskTy || isUntypedPointerTy(Ty) || isTodoType(Op))) {
       Type *PrevElemTy = GR->findDeducedElementType(Op);
       GR->addDeducedElementType(Op, normalizeType(KnownElemTy));
       // check if KnownElemTy is complete
@@ -1197,7 +1203,7 @@ void SPIRVEmitIntrinsics::preprocessUndefs(IRBuilder<> &B) {
         setInsertPointSkippingPhis(B, I);
         BPrepared = true;
       }
-      auto *IntrUndef = B.CreateIntrinsic(Intrinsic::spv_undef, {}, {});
+      auto *IntrUndef = B.CreateIntrinsic(Intrinsic::spv_undef, {});
       Worklist.push(IntrUndef);
       I->replaceUsesOfWith(Op, IntrUndef);
       AggrConsts[IntrUndef] = AggrUndef;
@@ -1309,7 +1315,7 @@ Instruction *SPIRVEmitIntrinsics::visitCallInst(CallInst &Call) {
 
   IRBuilder<> B(Call.getParent());
   B.SetInsertPoint(&Call);
-  B.CreateIntrinsic(Intrinsic::spv_inline_asm, {}, {Args});
+  B.CreateIntrinsic(Intrinsic::spv_inline_asm, {Args});
   return &Call;
 }
 
@@ -1469,34 +1475,36 @@ void SPIRVEmitIntrinsics::replacePointerOperandWithPtrCast(
   // Do not emit new spv_ptrcast if equivalent one already exists or when
   // spv_assign_ptr_type already targets this pointer with the same element
   // type.
-  for (auto User : Pointer->users()) {
-    auto *II = dyn_cast<IntrinsicInst>(User);
-    if (!II ||
-        (II->getIntrinsicID() != Intrinsic::spv_assign_ptr_type &&
-         II->getIntrinsicID() != Intrinsic::spv_ptrcast) ||
-        II->getOperand(0) != Pointer)
-      continue;
+  if (Pointer->hasUseList()) {
+    for (auto User : Pointer->users()) {
+      auto *II = dyn_cast<IntrinsicInst>(User);
+      if (!II ||
+          (II->getIntrinsicID() != Intrinsic::spv_assign_ptr_type &&
+           II->getIntrinsicID() != Intrinsic::spv_ptrcast) ||
+          II->getOperand(0) != Pointer)
+        continue;
 
-    // There is some spv_ptrcast/spv_assign_ptr_type already targeting this
-    // pointer.
-    FirstPtrCastOrAssignPtrType = false;
-    if (II->getOperand(1) != VMD ||
-        dyn_cast<ConstantInt>(II->getOperand(2))->getSExtValue() !=
-            AddressSpace)
-      continue;
+      // There is some spv_ptrcast/spv_assign_ptr_type already targeting this
+      // pointer.
+      FirstPtrCastOrAssignPtrType = false;
+      if (II->getOperand(1) != VMD ||
+          dyn_cast<ConstantInt>(II->getOperand(2))->getSExtValue() !=
+              AddressSpace)
+        continue;
 
-    // The spv_ptrcast/spv_assign_ptr_type targeting this pointer is of the same
-    // element type and address space.
-    if (II->getIntrinsicID() != Intrinsic::spv_ptrcast)
+      // The spv_ptrcast/spv_assign_ptr_type targeting this pointer is of the
+      // same element type and address space.
+      if (II->getIntrinsicID() != Intrinsic::spv_ptrcast)
+        return;
+
+      // This must be a spv_ptrcast, do not emit new if this one has the same BB
+      // as I. Otherwise, search for other spv_ptrcast/spv_assign_ptr_type.
+      if (II->getParent() != I->getParent())
+        continue;
+
+      I->setOperand(OperandToReplace, II);
       return;
-
-    // This must be a spv_ptrcast, do not emit new if this one has the same BB
-    // as I. Otherwise, search for other spv_ptrcast/spv_assign_ptr_type.
-    if (II->getParent() != I->getParent())
-      continue;
-
-    I->setOperand(OperandToReplace, II);
-    return;
+    }
   }
 
   if (isa<Instruction>(Pointer) || isa<Argument>(Pointer)) {
@@ -1806,7 +1814,7 @@ Instruction *SPIRVEmitIntrinsics::visitAtomicCmpXchgInst(AtomicCmpXchgInst &I) {
 Instruction *SPIRVEmitIntrinsics::visitUnreachableInst(UnreachableInst &I) {
   IRBuilder<> B(I.getParent());
   B.SetInsertPoint(&I);
-  B.CreateIntrinsic(Intrinsic::spv_unreachable, {}, {});
+  B.CreateIntrinsic(Intrinsic::spv_unreachable, {});
   return &I;
 }
 
@@ -1828,7 +1836,7 @@ void SPIRVEmitIntrinsics::processGlobalValue(GlobalVariable &GV,
                                        {GV.getType(), Ty}, {&GV, Const});
     InitInst->setArgOperand(1, Init);
   }
-  if (!Init && GV.getNumUses() == 0)
+  if (!Init && GV.use_empty())
     B.CreateIntrinsic(Intrinsic::spv_unref_global, GV.getType(), &GV);
 }
 
@@ -2398,9 +2406,8 @@ bool SPIRVEmitIntrinsics::runOnFunction(Function &Func) {
 
   preprocessUndefs(B);
   preprocessCompositeConstants(B);
-  SmallVector<Instruction *> Worklist;
-  for (auto &I : instructions(Func))
-    Worklist.push_back(&I);
+  SmallVector<Instruction *> Worklist(
+      llvm::make_pointer_range(instructions(Func)));
 
   applyDemangledPtrArgTypes(B);
 
@@ -2486,10 +2493,13 @@ bool SPIRVEmitIntrinsics::postprocessTypes(Module &M) {
         }
       }
     }
-    for (User *U : Op->users()) {
-      Instruction *Inst = dyn_cast<Instruction>(U);
-      if (Inst && !isa<IntrinsicInst>(Inst))
-        ToProcess[Inst].insert(Op);
+
+    if (Op->hasUseList()) {
+      for (User *U : Op->users()) {
+        Instruction *Inst = dyn_cast<Instruction>(U);
+        if (Inst && !isa<IntrinsicInst>(Inst))
+          ToProcess[Inst].insert(Op);
+      }
     }
   }
   if (TodoTypeSz == 0)

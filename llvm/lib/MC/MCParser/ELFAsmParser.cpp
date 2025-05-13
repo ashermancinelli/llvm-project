@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/ScopeExit.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -136,7 +137,6 @@ private:
   bool parseMergeSize(int64_t &Size);
   bool parseGroup(StringRef &GroupName, bool &IsComdat);
   bool parseLinkedToSym(MCSymbolELF *&LinkedToSym);
-  bool maybeParseUniqueID(int64_t &UniqueID);
 };
 
 } // end anonymous namespace
@@ -473,28 +473,6 @@ bool ELFAsmParser::parseLinkedToSym(MCSymbolELF *&LinkedToSym) {
   return false;
 }
 
-bool ELFAsmParser::maybeParseUniqueID(int64_t &UniqueID) {
-  MCAsmLexer &L = getLexer();
-  if (L.isNot(AsmToken::Comma))
-    return false;
-  Lex();
-  StringRef UniqueStr;
-  if (getParser().parseIdentifier(UniqueStr))
-    return TokError("expected identifier");
-  if (UniqueStr != "unique")
-    return TokError("expected 'unique'");
-  if (L.isNot(AsmToken::Comma))
-    return TokError("expected commma");
-  Lex();
-  if (getParser().parseAbsoluteExpression(UniqueID))
-    return true;
-  if (UniqueID < 0)
-    return TokError("unique id must be positive");
-  if (!isUInt<32>(UniqueID) || UniqueID == ~0U)
-    return TokError("unique id is too large");
-  return false;
-}
-
 static bool hasPrefix(StringRef SectionName, StringRef Prefix) {
   return SectionName.consume_front(Prefix) &&
          (SectionName.empty() || SectionName[0] == '.');
@@ -740,6 +718,13 @@ bool ELFAsmParser::parseDirectiveType(StringRef, SMLoc) {
 
   // Handle the identifier as the key symbol.
   MCSymbol *Sym = getContext().getOrCreateSymbol(Name);
+
+  bool AllowAt = getLexer().getAllowAtInIdentifier();
+  if (!AllowAt &&
+      !getContext().getAsmInfo()->getCommentString().starts_with("@"))
+    getLexer().setAllowAtInIdentifier(true);
+  auto _ =
+      make_scope_exit([&]() { getLexer().setAllowAtInIdentifier(AllowAt); });
 
   // NOTE the comma is optional in all cases.  It is only documented as being
   // optional in the first case, however, GAS will silently treat the comma as
