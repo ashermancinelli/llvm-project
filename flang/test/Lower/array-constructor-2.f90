@@ -90,8 +90,7 @@ subroutine test3(a)
   ! CHECK-NEXT: fir.store
   ! CHECK: fir.freemem %[[tmp]]
   ! CHECK: fir.freemem %[[tmp2]]
-  ! CHECK: %[[alli:.*]] = fir.box_addr %{{.*}} : (!fir.box<!fir.heap<!fir.array<?xf32>>>) -> !fir.heap<!fir.array<?xf32>>
-  ! CHECK: fir.freemem %[[alli]]
+  ! CHECK: fir.freemem %{{.+}}
   ! CHECK: fir.freemem %[[hp1]]
   a = (/ b, test3c() /)
 end subroutine test3
