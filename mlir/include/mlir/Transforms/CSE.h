@@ -13,6 +13,7 @@
 #ifndef MLIR_TRANSFORMS_CSE_H_
 #define MLIR_TRANSFORMS_CSE_H_
 
+#include "mlir/Pass/Pass.h"
 namespace mlir {
 
 class DominanceInfo;
@@ -26,6 +27,10 @@ class RewriterBase;
 void eliminateCommonSubExpressions(RewriterBase &rewriter,
                                    DominanceInfo &domInfo, Operation *op,
                                    bool *changed = nullptr);
+
+using ModRefCheckFn =
+    llvm::function_ref<bool(mlir::Value read, mlir::Operation *maybeWrite)>;
+std::unique_ptr<Pass> createCSEPass(ModRefCheckFn modRefCheckFn);
 
 } // namespace mlir
 
