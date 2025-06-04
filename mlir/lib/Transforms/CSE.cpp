@@ -292,9 +292,8 @@ bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
     if (auto branch = dyn_cast<RegionBranchOpInterface>(nextOp)) {
       // If we get a result back, we either found something unsafe or our terminating operation.
       // Otherwise, continue checking for unsafe side-effects.
-      auto result = hasOtherSideEffectingOpInRegion(branch, toOp);
-      if (result.has_value()) {
-        return result.value() ? opIsUnsafe(nextOp) : opIsSafe();
+      if (auto regionIsUnsafe = hasOtherSideEffectingOpInRegion(branch, toOp)) {
+        return regionIsUnsafe.value() ? opIsUnsafe(nextOp) : opIsSafe();
       }
     }
     if (opHasUnsafeSideEffect(nextOp)) {
