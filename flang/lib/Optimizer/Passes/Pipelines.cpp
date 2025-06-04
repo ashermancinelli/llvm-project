@@ -10,7 +10,12 @@
 /// common to flang and the test tools.
 
 #include "flang/Optimizer/Passes/Pipelines.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
+#include <numeric>
+#include "mlir/Transforms/CSE.h"
+#include "flang/Optimizer/Analysis/AliasAnalysis.h"
+#include "mlir/Analysis/AliasAnalysis.h"
 
 /// Force setting the no-alias attribute on fuction arguments when possible.
 static llvm::cl::opt<bool> forceNoAlias("force-no-alias", llvm::cl::Hidden,
@@ -78,6 +83,25 @@ void addCodeGenRewritePass(mlir::PassManager &pm, bool preserveDeclare) {
 void addTargetRewritePass(mlir::PassManager &pm) {
   addPassConditionally(pm, disableTargetRewrite,
                        []() { return fir::createTargetRewritePass(); });
+}
+
+/// Helper that returns true when the write _may_ clobber the read.
+/// It is the function we will pass to createCSEPass().
+static bool
+mayAliasByFortranRules(mlir::Value memref, mlir::Operation *op) {
+  // Use FIR AA on the two locations.
+  fir::AliasAnalysis aliasAnalysis;
+  mlir::ModRefResult res = aliasAnalysis.getModRef(op, memref);
+  llvm::dbgs() << "mayAliasByFortranRules:\nChecking if\n" << memref
+               << " may alias with\n";
+  op->dump();
+  llvm::dbgs() << "\nModRefResult:\n" << res << "\n";
+  return res.isMod();
+}
+
+/// Register one CSE pass that uses the callback above.
+static void addCSEPass(mlir::PassManager &pm) {
+  pm.addPass(mlir::createCSEPass(mayAliasByFortranRules));
 }
 
 mlir::LLVM::DIEmissionKind
@@ -171,7 +195,7 @@ void createDefaultFIROptimizerPassPipeline(mlir::PassManager &pm,
   mlir::GreedyRewriteConfig config;
   config.setRegionSimplificationLevel(
       mlir::GreedySimplifyRegionLevel::Disabled);
-  pm.addPass(mlir::createCSEPass());
+  fir::addCSEPass(pm);
   fir::addAVC(pm, pc.OptLevel);
   addNestedPassToAllTopLevelOperations<PassConstructor>(
       pm, fir::createCharacterConversion);
@@ -188,7 +212,7 @@ void createDefaultFIROptimizerPassPipeline(mlir::PassManager &pm,
   if (pc.LoopVersioning)
     pm.addPass(fir::createLoopVersioning());
 
-  pm.addPass(mlir::createCSEPass());
+  fir::addCSEPass(pm);
 
   if (pc.StackArrays)
     pm.addPass(fir::createStackArrays());
@@ -199,7 +223,7 @@ void createDefaultFIROptimizerPassPipeline(mlir::PassManager &pm,
   pc.invokeFIRInlinerCallback(pm, pc.OptLevel);
 
   pm.addPass(fir::createSimplifyRegionLite());
-  pm.addPass(mlir::createCSEPass());
+  fir::addCSEPass(pm);
 
   // Polymorphic types
   pm.addPass(fir::createPolymorphicOpConversion());
@@ -222,7 +246,7 @@ void createDefaultFIROptimizerPassPipeline(mlir::PassManager &pm,
 
   pm.addPass(mlir::createCanonicalizerPass(config));
   pm.addPass(fir::createSimplifyRegionLite());
-  pm.addPass(mlir::createCSEPass());
+  fir::addCSEPass(pm);
 
   if (pc.OptLevel.isOptimizingForSpeed())
     pm.addPass(fir::createSetRuntimeCallAttributes());
@@ -247,7 +271,7 @@ void createHLFIRToFIRPassPipeline(mlir::PassManager &pm, bool enableOpenMP,
       pm, hlfir::createInlineElementals);
   if (optLevel.isOptimizingForSpeed()) {
     addCanonicalizerPassWithoutRegionSimplification(pm);
-    pm.addPass(mlir::createCSEPass());
+    fir::addCSEPass(pm);
     // Run SimplifyHLFIRIntrinsics pass late after CSE,
     // and allow introducing operations with new side effects.
     addNestedPassToAllTopLevelOperations<PassConstructor>(pm, []() {

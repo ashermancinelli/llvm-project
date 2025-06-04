@@ -1,4 +1,4 @@
-//===- CSE.cpp - Common Sub-expression Elimination ------------------------===//
+
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -23,7 +23,12 @@
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/RecyclingAllocator.h"
+#include "llvm/Support/Debug.h"
+#define DEBUG_TYPE "cse-debug"
 #include <deque>
+#include "llvm/ADT/STLExtras.h"
+#include <functional>
+#include "mlir/Interfaces/ControlFlowInterfaces.h"
 
 namespace mlir {
 #define GEN_PASS_DEF_CSE
@@ -60,8 +65,10 @@ namespace {
 /// Simple common sub-expression elimination.
 class CSEDriver {
 public:
-  CSEDriver(RewriterBase &rewriter, DominanceInfo *domInfo)
-      : rewriter(rewriter), domInfo(domInfo) {}
+  CSEDriver(RewriterBase &rewriter, DominanceInfo *domInfo,
+            std::optional<ModRefCheckFn> modRefCheckFn = std::nullopt)
+      : rewriter(rewriter), domInfo(domInfo),
+        modRefCheckFn(modRefCheckFn) {}
 
   /// Simplify all operations within the given op.
   void simplify(Operation *op, bool *changed = nullptr);
@@ -125,6 +132,8 @@ private:
   // Various statistics.
   int64_t numCSE = 0;
   int64_t numDCE = 0;
+
+  std::optional<ModRefCheckFn> modRefCheckFn;
 };
 } // namespace
 
@@ -175,14 +184,80 @@ void CSEDriver::replaceUsesAndDelete(ScopedMapTy &knownValues, Operation *op,
   ++numCSE;
 }
 
+static bool opHasOnlySimpleRegions(Operation *op) {
+  return llvm::all_of(op->getRegions(), [](Region &region) {
+    return region.hasOneBlock() || region.empty();
+  });
+}
+
+static bool opHasUnsafeSideEffect(Operation *op) {
+  std::optional<SmallVector<MemoryEffects::EffectInstance>> effects =
+      getEffectsRecursively(op);
+  if (!effects) {
+    // TODO: Do we need to handle other effects generically?
+    // If the operation does not implement the MemoryEffectOpInterface we
+    // conservatively assume it writes.
+    LLVM_DEBUG(llvm::dbgs() << "[CSE-AA]   op has no MemoryEffect interface; "
+                               "conservatively assume WRITE\n");
+    return true;
+  }
+
+  const bool anyWrites =
+      llvm::any_of(*effects, [&](const MemoryEffects::EffectInstance &effect) {
+        return mlir::isa<MemoryEffects::Write>(effect.getEffect());
+      });
+  return anyWrites;
+}
+
+static std::optional<bool> hasOtherSideEffectingOpInRegion(RegionBranchOpInterface branch, Operation *toOp) {
+  if (branch->hasTrait<OpTrait::HasRecursiveMemoryEffects>() &&
+      opHasOnlySimpleRegions(branch)) {
+    SmallVector<Attribute> unknownOperands(branch->getNumOperands(),
+                                           Attribute());
+    SmallVector<InvocationBounds> bounds;
+    branch.getRegionInvocationBounds(unknownOperands, bounds);
+    const bool boundsAreSafeForCSE =
+        !bounds.empty() && llvm::all_of(bounds, [](InvocationBounds bound) {
+          auto ub = bound.getUpperBound();
+          return ub.has_value() && ub.value() <= 1;
+        });
+    if (boundsAreSafeForCSE) {
+      for (auto &region : branch->getRegions()) {
+        for (auto &block : region.getBlocks()) {
+          for (auto &op : block) {
+            LLVM_DEBUG(llvm::dbgs() << "[CSE-AA]   examining op: ";
+                       op.print(llvm::dbgs()); llvm::dbgs() << "\n";);
+            if (&op == toOp) {
+              LLVM_DEBUG(llvm::dbgs() << "[CSE-AA]   op is the toOp, break\n");
+              return false;
+            }
+            if (opHasUnsafeSideEffect(&op)) {
+              LLVM_DEBUG(llvm::dbgs()
+                         << "[CSE-AA]   op has unsafe effects, bail\n");
+              return true;
+            }
+          }
+        }
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
                                                  Operation *toOp) {
-  assert(fromOp->getBlock() == toOp->getBlock());
+  llvm::dbgs() << "fromOp: ";
+  fromOp->print(llvm::dbgs());
+  llvm::dbgs() << "\ntoOp: ";
+  toOp->print(llvm::dbgs());
+  llvm::dbgs() << "\n";
+  assert(domInfo->properlyDominates(fromOp, toOp));
   assert(
       isa<MemoryEffectOpInterface>(fromOp) &&
       cast<MemoryEffectOpInterface>(fromOp).hasEffect<MemoryEffects::Read>() &&
       isa<MemoryEffectOpInterface>(toOp) &&
       cast<MemoryEffectOpInterface>(toOp).hasEffect<MemoryEffects::Read>());
+
   Operation *nextOp = fromOp->getNextNode();
   auto result =
       memEffectsCache.try_emplace(fromOp, std::make_pair(fromOp, nullptr));
@@ -198,28 +273,36 @@ bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
       return true;
     }
   }
-  while (nextOp && nextOp != toOp) {
-    std::optional<SmallVector<MemoryEffects::EffectInstance>> effects =
-        getEffectsRecursively(nextOp);
-    if (!effects) {
-      // TODO: Do we need to handle other effects generically?
-      // If the operation does not implement the MemoryEffectOpInterface we
-      // conservatively assume it writes.
-      result.first->second =
-          std::make_pair(nextOp, MemoryEffects::Write::get());
-      return true;
-    }
-
-    for (const MemoryEffects::EffectInstance &effect : *effects) {
-      if (isa<MemoryEffects::Write>(effect.getEffect())) {
-        result.first->second = {nextOp, MemoryEffects::Write::get()};
-        return true;
+  auto opIsSafe = [&]() {
+    result.first->second = std::make_pair(toOp, nullptr);
+    return false;
+  };
+  auto opIsUnsafe = [&](Operation *op) {
+    LLVM_DEBUG(llvm::dbgs() << "[CSE-AA]   WRITE effect found and deemed "
+                               "ALIASING, op blocks CSE\n");
+    result.first->second = {op, MemoryEffects::Write::get()};
+    return true;
+  };
+  for (; nextOp && nextOp != toOp; nextOp = nextOp->getNextNode()) {
+    LLVM_DEBUG({
+      llvm::dbgs() << "[CSE-AA] examining op between loads: ";
+      nextOp->print(llvm::dbgs());
+      llvm::dbgs() << "\n";
+    });
+    if (auto branch = dyn_cast<RegionBranchOpInterface>(nextOp)) {
+      // If we get a result back, we either found something unsafe or our terminating operation.
+      // Otherwise, continue checking for unsafe side-effects.
+      if (auto regionIsUnsafe = hasOtherSideEffectingOpInRegion(branch, toOp)) {
+        return regionIsUnsafe.value() ? opIsUnsafe(nextOp) : opIsSafe();
       }
     }
-    nextOp = nextOp->getNextNode();
+    if (opHasUnsafeSideEffect(nextOp)) {
+      LLVM_DEBUG(llvm::dbgs() << "[CSE-AA]   op has unsafe effects, bail\n");
+      return opIsUnsafe(nextOp);
+    }
+    LLVM_DEBUG(llvm::dbgs() << "[CSE-AA]   no WRITE effect, continue\n");
   }
-  result.first->second = std::make_pair(toOp, nullptr);
-  return false;
+  return opIsSafe();
 }
 
 /// Attempt to eliminate a redundant operation.
@@ -239,30 +322,50 @@ LogicalResult CSEDriver::simplifyOperation(ScopedMapTy &knownValues,
 
   // Don't simplify operations with regions that have multiple blocks.
   // TODO: We need additional tests to verify that we handle such IR correctly.
-  if (!llvm::all_of(op->getRegions(), [](Region &r) {
-        return r.getBlocks().empty() || llvm::hasSingleElement(r.getBlocks());
-      }))
+  if (!opHasOnlySimpleRegions(op)) {
+    LLVM_DEBUG(llvm::dbgs() << "[CSE] Operation has multiple regions, skipping.\n");
     return failure();
+  }
 
   // Some simple use case of operation with memory side-effect are dealt with
   // here. Operations with no side-effect are done after.
   if (!isMemoryEffectFree(op)) {
+    LLVM_DEBUG({
+      llvm::dbgs() << "[CSE] Visiting op with memory effects: ";
+      op->print(llvm::dbgs());
+      llvm::dbgs() << "\n";
+    });
     auto memEffects = dyn_cast<MemoryEffectOpInterface>(op);
     // TODO: Only basic use case for operations with MemoryEffects::Read can be
     // eleminated now. More work needs to be done for more complicated patterns
     // and other side-effects.
-    if (!memEffects || !memEffects.onlyHasEffect<MemoryEffects::Read>())
+    if (!memEffects || !memEffects.onlyHasEffect<MemoryEffects::Read>()) {
+      LLVM_DEBUG(llvm::dbgs() << "[CSE] Operation has non-read memory effects, skipping.\n");
       return failure();
+    }
 
     // Look for an existing definition for the operation.
     if (auto *existing = knownValues.lookup(op)) {
-      if (existing->getBlock() == op->getBlock() &&
+      LLVM_DEBUG({
+        llvm::dbgs() << "[CSE] Found equivalent op: ";
+        existing->print(llvm::dbgs());
+        llvm::dbgs() << "\n";
+      });
+      if (domInfo->properlyDominates(existing, op) &&
           !hasOtherSideEffectingOpInBetween(existing, op)) {
+        LLVM_DEBUG(llvm::dbgs() << "[CSE] No side-effecting op in between, will replace.\n");
         // The operation that can be deleted has been reach with no
         // side-effecting operations in between the existing operation and
         // this one so we can remove the duplicate.
         replaceUsesAndDelete(knownValues, op, existing, hasSSADominance);
         return success();
+      } else {
+        llvm::dbgs()
+            << "[CSE] Equivalent op does not dominate or can't be reused.\n";
+        // LLVM_DEBUG({
+        //   if (hasOtherSideEffectingOpInBetween(existing, op))
+        //     llvm::dbgs() << "[CSE] Side-effecting op detected between operations, cannot replace.\n";
+        // });
       }
     }
     knownValues.insert(op, op);
@@ -325,8 +428,10 @@ void CSEDriver::simplifyRegion(ScopedMapTy &knownValues, Region &region) {
   // If the region does not have dominanceInfo, then skip it.
   // TODO: Regions without SSA dominance should define a different
   // traversal order which is appropriate and can be used here.
-  if (!hasSSADominance)
+  if (!hasSSADominance) {
+    LLVM_DEBUG(llvm::dbgs() << "[CSE] Region does not have SSA dominance, skipping.\n");
     return;
+  }
 
   // Note, deque is being used here because there was significant performance
   // gains over vector when the container becomes very large due to the
@@ -390,13 +495,15 @@ namespace {
 /// CSE pass.
 struct CSE : public impl::CSEBase<CSE> {
   void runOnOperation() override;
+  std::optional<ModRefCheckFn> modRefCheckFn=std::nullopt;
 };
 } // namespace
 
 void CSE::runOnOperation() {
   // Simplify the IR.
   IRRewriter rewriter(&getContext());
-  CSEDriver driver(rewriter, &getAnalysis<DominanceInfo>());
+  CSEDriver driver(rewriter, &getAnalysis<DominanceInfo>(),
+                   modRefCheckFn ? *modRefCheckFn : ModRefCheckFn(nullptr));
   bool changed = false;
   driver.simplify(getOperation(), &changed);
 
@@ -414,3 +521,9 @@ void CSE::runOnOperation() {
 }
 
 std::unique_ptr<Pass> mlir::createCSEPass() { return std::make_unique<CSE>(); }
+
+std::unique_ptr<Pass> mlir::createCSEPass(ModRefCheckFn modRefCheckFn) {
+  auto pass = std::make_unique<CSE>();
+  pass->modRefCheckFn = modRefCheckFn;
+  return pass;
+}
