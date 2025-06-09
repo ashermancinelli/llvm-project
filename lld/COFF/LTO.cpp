@@ -25,6 +25,7 @@
 #include "llvm/LTO/LTO.h"
 #include "llvm/Support/Caching.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cstddef>
@@ -46,6 +47,18 @@ lto::Config BitcodeCompiler::createConfig() {
   lto::Config c;
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = true;
+  
+  // Load plugins first, so their command line options are registered
+  for (const auto &pluginFn : ctx.config.passPlugins) {
+    auto Plugin = PassPlugin::Load(std::string(pluginFn));
+    if (!Plugin) {
+      report_fatal_error(Plugin.takeError());
+    }
+    // Store plugins for later use
+    c.Plugins.push_back(std::move(*Plugin));
+  }
+  
+  // Now process -mllvm arguments after plugins have registered their options
   for (StringRef C : ctx.config.mllvmOpts)
     c.MllvmArgs.emplace_back(C.str());
 

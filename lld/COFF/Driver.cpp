@@ -1518,6 +1518,11 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
 
   llvm::TimeTraceScope timeScope("COFF link");
 
+  // Process pass plugin options
+  for (const auto *arg : args.filtered(OPT_load_pass_plugin)) {
+    config->passPlugins.emplace_back(arg->getValue());
+  }
+
   // Parse and evaluate -mllvm options.
   std::vector<const char *> v;
   v.push_back("lld-link (LLVM option parsing)");

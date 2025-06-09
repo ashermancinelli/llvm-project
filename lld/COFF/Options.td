@@ -357,3 +357,6 @@ def tlbout : P_priv<"tlbout">;
 def verbose_all : P_priv<"verbose">;
 def guardsym : P_priv<"guardsym">;
 def arm64xsameaddress : P_priv<"arm64xsameaddress">;
+
+def load_pass_plugin : P<"load-pass-plugin", "Load passes from plugin library">;
+

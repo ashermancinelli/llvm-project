@@ -276,7 +276,16 @@ static void runNewPMPasses(const Config &Conf, Module &Mod, TargetMachine *TM,
   SI.registerCallbacks(PIC, &MAM);
   PassBuilder PB(TM, Conf.PTO, PGOOpt, &PIC);
 
-  RegisterPassPlugins(Conf.PassPlugins, PB);
+  // Use already loaded plugins if available, otherwise load them now
+  if (!Conf.Plugins.empty()) {
+    // Use the already loaded plugins
+    for (const auto &Plugin : Conf.Plugins) {
+      Plugin.registerPassBuilderCallbacks(PB);
+    }
+  } else {
+    // Fall back to loading plugins if they weren't loaded earlier
+    RegisterPassPlugins(Conf.PassPlugins, PB);
+  }
 
   std::unique_ptr<TargetLibraryInfoImpl> TLII(
       new TargetLibraryInfoImpl(TM->getTargetTriple()));

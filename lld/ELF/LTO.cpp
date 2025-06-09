@@ -48,6 +48,18 @@ static lto::Config createConfig(Ctx &ctx) {
   // LLD supports the new relocations and address-significance tables.
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = true;
+  
+  // Load plugins first, so their command line options are registered
+  for (StringRef pluginFn : ctx.arg.passPlugins) {
+    auto Plugin = PassPlugin::Load(std::string(pluginFn));
+    if (!Plugin) {
+      report_fatal_error(Plugin.takeError());
+    }
+    // Store plugins for later use
+    c.Plugins.push_back(std::move(*Plugin));
+  }
+  
+  // Now process -mllvm arguments after plugins have registered their options
   for (StringRef C : ctx.arg.mllvmOpts)
     c.MllvmArgs.emplace_back(C.str());
 
@@ -122,6 +134,7 @@ static lto::Config createConfig(Ctx &ctx) {
   c.StatsFile = std::string(ctx.arg.optStatsFilename);
 
   c.SampleProfile = std::string(ctx.arg.ltoSampleProfile);
+  // Pass plugin paths are still needed for backwards compatibility
   for (StringRef pluginFn : ctx.arg.passPlugins)
     c.PassPlugins.push_back(std::string(pluginFn));
   c.DebugPassManager = ctx.arg.ltoDebugPassManager;
