@@ -455,29 +455,17 @@ static ModRefResult getCallModRef(fir::CallOp call, mlir::Value var) {
 /// flow analysis to come 2) Allocate and Free effects are considered
 /// modifying
 ModRefResult AliasAnalysis::getModRef(Operation *op, Value location) {
-  SmallVector<MemoryEffects::EffectInstance> effects;
+  MemoryEffectOpInterface interface = dyn_cast<MemoryEffectOpInterface>(op);
+  if (!interface) {
+    if (auto call = llvm::dyn_cast<fir::CallOp>(op))
+      return getCallModRef(call, location);
+    return ModRefResult::getModAndRef();
+  }
 
   // Build a ModRefResult by merging the behavior of the effects of this
   // operation.
-  // interface.getEffects(effects);
-  // MemoryEffectOpInterface interface = dyn_cast<MemoryEffectOpInterface>(op);
-  if (auto interface = dyn_cast<MemoryEffectOpInterface>(op)) {
-    interface.getEffects(effects);
-  } else {
-    if (auto call = llvm::dyn_cast<fir::CallOp>(op))
-      return getCallModRef(call, location);
-    else if (op->hasTrait<mlir::OpTrait::HasRecursiveMemoryEffects>()) {
-      auto maybeEffects = getEffectsRecursively(op);
-      if (!maybeEffects) {
-        llvm::dbgs() << "getModRef: no effects\n";
-        return ModRefResult::getNoModRef();
-      }
-      effects = *maybeEffects;
-    } else {
-      llvm::dbgs() << "getModRef: no interface\n";
-      return ModRefResult::getModAndRef();
-    }
-  }
+  SmallVector<MemoryEffects::EffectInstance> effects;
+  interface.getEffects(effects);
 
   ModRefResult result = ModRefResult::getNoModRef();
   for (const MemoryEffects::EffectInstance &effect : effects) {
