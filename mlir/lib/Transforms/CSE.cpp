@@ -220,13 +220,10 @@ hasOtherSideEffectingOpInRegion(RegionBranchOpInterface branch,
       for (auto &region : branch->getRegions()) {
         for (auto &block : region.getBlocks()) {
           for (auto &op : block) {
-
             if (&op == toOp) {
-
               return false;
             }
             if (opHasUnsafeSideEffect(&op)) {
-
               return true;
             }
           }
@@ -239,7 +236,6 @@ hasOtherSideEffectingOpInRegion(RegionBranchOpInterface branch,
 
 bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
                                                  Operation *toOp) {
-
   assert(domInfo->properlyDominates(fromOp, toOp));
   assert(
       isa<MemoryEffectOpInterface>(fromOp) &&
@@ -271,7 +267,6 @@ bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
     return true;
   };
   for (; nextOp && nextOp != toOp; nextOp = nextOp->getNextNode()) {
-
     if (auto branch = dyn_cast<RegionBranchOpInterface>(nextOp)) {
       // If we get a result back, we either found something unsafe or our
       // terminating operation. Otherwise, continue checking for unsafe
@@ -281,7 +276,6 @@ bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
       }
     }
     if (opHasUnsafeSideEffect(nextOp)) {
-
       return opIsUnsafe(nextOp);
     }
   }
@@ -306,35 +300,29 @@ LogicalResult CSEDriver::simplifyOperation(ScopedMapTy &knownValues,
   // Don't simplify operations with regions that have multiple blocks.
   // TODO: We need additional tests to verify that we handle such IR correctly.
   if (!opHasOnlySimpleRegions(op)) {
-
     return failure();
   }
 
   // Some simple use case of operation with memory side-effect are dealt with
   // here. Operations with no side-effect are done after.
   if (!isMemoryEffectFree(op)) {
-
     auto memEffects = dyn_cast<MemoryEffectOpInterface>(op);
     // TODO: Only basic use case for operations with MemoryEffects::Read can be
     // eleminated now. More work needs to be done for more complicated patterns
     // and other side-effects.
     if (!memEffects || !memEffects.onlyHasEffect<MemoryEffects::Read>()) {
-
       return failure();
     }
 
     // Look for an existing definition for the operation.
     if (auto *existing = knownValues.lookup(op)) {
-
       if (domInfo->properlyDominates(existing, op) &&
           !hasOtherSideEffectingOpInBetween(existing, op)) {
-
         // The operation that can be deleted has been reach with no
         // side-effecting operations in between the existing operation and
         // this one so we can remove the duplicate.
         replaceUsesAndDelete(knownValues, op, existing, hasSSADominance);
         return success();
-      } else {
       }
     }
     knownValues.insert(op, op);
@@ -398,7 +386,6 @@ void CSEDriver::simplifyRegion(ScopedMapTy &knownValues, Region &region) {
   // TODO: Regions without SSA dominance should define a different
   // traversal order which is appropriate and can be used here.
   if (!hasSSADominance) {
-
     return;
   }
 
