@@ -83,13 +83,11 @@ subroutine only_once(x)
 ! CHECK:   %[[VAL_54:.*]] = arith.subi %[[VAL_44]], %[[VAL_30]] : index
 ! CHECK:   cf.br ^bb1(%[[VAL_53]], %[[VAL_54]] : index, index)
 ! CHECK: ^bb3:
-! CHECK:   %[[VAL_55:.*]] = fir.load %[[VAL_31]] : !fir.ref<!fir.box<!fir.heap<!fir.array<?xi32>>>>
-! CHECK:   %[[VAL_56:.*]] = fir.box_addr %[[VAL_55]] : (!fir.box<!fir.heap<!fir.array<?xi32>>>) -> !fir.heap<!fir.array<?xi32>>
-! CHECK:   %[[VAL_57:.*]] = fir.convert %[[VAL_56]] : (!fir.heap<!fir.array<?xi32>>) -> i64
+! CHECK:   %[[VAL_57:.*]] = fir.convert %[[VAL_40]] : (!fir.heap<!fir.array<?xi32>>) -> i64
 ! CHECK:   %[[VAL_58:.*]] = arith.cmpi ne, %[[VAL_57]], %[[VAL_28]] : i64
 ! CHECK:   cf.cond_br %[[VAL_58]], ^bb4, ^bb5
 ! CHECK: ^bb4:
-! CHECK:   fir.freemem %[[VAL_56]] : !fir.heap<!fir.array<?xi32>>
+! CHECK:   fir.freemem %[[VAL_40]] : !fir.heap<!fir.array<?xi32>>
 ! CHECK:   cf.br ^bb5
 ! CHECK: ^bb5:
 ! CHECK:   %[[VAL_59:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_34]]) {{.*}}: (!fir.ref<i8>) -> i32
@@ -579,3 +577,4 @@ subroutine iostat_in_io_loop(k, j, stat)
 ! CHECK:   fir.store %[[VAL_407]] to %[[VAL_408]] : !fir.ref<i32>
 ! CHECK:   return
 end subroutine
+
