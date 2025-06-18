@@ -1,345 +1,328 @@
 ! RUN: bbc -hlfir=false -fwrapv -o - --outline-intrinsics %s | FileCheck %s
 
-! CHECK-LABEL: func @_QQmain() attributes {fir.bindc_name = "p"} {
-! CHECK-DAG:         %[[VAL_0:.*]] = arith.constant 10 : index
-! CHECK-DAG:         %[[VAL_4:.*]] = arith.constant 2 : index
-! CHECK-DAG:         %[[VAL_5:.*]] = arith.constant 1 : index
-! CHECK-DAG:         %[[VAL_6:.*]] = arith.constant 0 : index
-! CHECK-DAG:         %[[VAL_8:.*]] = arith.constant 8 : i64
-! CHECK-DAG:         %[[VAL_11:.*]] = arith.constant 3 : index
-! CHECK-DAG:         %[[VAL_13:.*]] = arith.constant 2 : i64
-! CHECK-DAG:         %[[VAL_14:.*]] = arith.constant 7 : i64
-! CHECK-DAG:         %[[VAL_16:.*]] = arith.constant 4 : i64
-! CHECK-DAG:         %[[VAL_18:.*]] = arith.constant 6 : i32
-! CHECK-DAG:         %[[VAL_19:.*]] = arith.constant 0 : i64
-! CHECK-DAG:         %[[VAL_20:.*]] = arith.constant 1 : i64
-! CHECK-DAG:         %[[VAL_21:.*]] = arith.constant 3 : i64
-! CHECK-DAG:         %[[VAL_22:.*]] = arith.constant 4 : index
-! CHECK-DAG:         %[[VAL_23:.*]] = arith.constant 1 : i32
-! CHECK-DAG:         %[[VAL_24:.*]] = arith.constant 0 : i32
-! CHECK-DAG:         %[[VAL_25:.*]] = fir.address_of(@_QFEa1) : !fir.ref<!fir.array<10x10xf32>>
-! CHECK-DAG:         %[[VAL_26:.*]] = fir.alloca !fir.array<3xf32> {bindc_name = "a2", uniq_name = "_QFEa2"}
-! CHECK-DAG:         %[[VAL_27:.*]] = fir.address_of(@_QFEa3) : !fir.ref<!fir.array<10xf32>>
-! CHECK-DAG:         %[[VAL_28:.*]] = fir.alloca i32 {bindc_name = "i", uniq_name = "_QFEi"}
-! CHECK-DAG:         %[[VAL_29:.*]] = fir.alloca !fir.array<3xi32> {bindc_name = "iv", uniq_name = "_QFEiv"}
-! CHECK-DAG:         %[[VAL_30:.*]] = fir.alloca i32 {bindc_name = "j", uniq_name = "_QFEj"}
-! CHECK-DAG:         %[[VAL_31:.*]] = fir.alloca i32 {bindc_name = "k", uniq_name = "_QFEk"}
-! CHECK:         fir.store %[[VAL_24]] to %[[VAL_31]] : !fir.ref<i32>
-! CHECK:         %[[STEP:.*]] = fir.convert %[[VAL_5]] : (index) -> i32
-! CHECK:         br ^bb1(%[[STEP]], %[[VAL_0]] : i32, index)
-! CHECK:       ^bb1(%[[VAL_32:.*]]: i32, %[[VAL_33:.*]]: index):
-! CHECK:         %[[VAL_34:.*]] = arith.cmpi sgt, %[[VAL_33]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_34]], ^bb2, ^bb6
-! CHECK:       ^bb2:
-! CHECK:         fir.store %[[VAL_32]] to %[[VAL_30]] : !fir.ref<i32>
-! CHECK:         br ^bb3(%[[STEP]], %[[VAL_0]] : i32, index)
-! CHECK:       ^bb3(%[[VAL_36:.*]]: i32, %[[VAL_37:.*]]: index):
-! CHECK:         %[[VAL_38:.*]] = arith.cmpi sgt, %[[VAL_37]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_38]], ^bb4, ^bb5
-! CHECK:       ^bb4:
-! CHECK:         fir.store %[[VAL_36]] to %[[VAL_28]] : !fir.ref<i32>
-! CHECK:         %[[VAL_40:.*]] = fir.load %[[VAL_31]] : !fir.ref<i32>
-! CHECK:         %[[VAL_41:.*]] = arith.addi %[[VAL_40]], %[[VAL_23]] : i32
-! CHECK:         fir.store %[[VAL_41]] to %[[VAL_31]] : !fir.ref<i32>
-! CHECK:         %[[VAL_42:.*]] = fir.load %[[VAL_31]] : !fir.ref<i32>
-! CHECK:         %[[VAL_43:.*]] = fir.convert %[[VAL_42]] : (i32) -> f32
-! CHECK:         %[[VAL_44:.*]] = fir.call @fir.cos.contract.f32.f32(%[[VAL_43]]) {{.*}}: (f32) -> f32
-! CHECK:         %[[VAL_45:.*]] = fir.load %[[VAL_28]] : !fir.ref<i32>
-! CHECK:         %[[VAL_46:.*]] = fir.convert %[[VAL_45]] : (i32) -> i64
-! CHECK:         %[[VAL_47:.*]] = arith.subi %[[VAL_46]], %[[VAL_20]] : i64
-! CHECK:         %[[VAL_48:.*]] = fir.load %[[VAL_30]] : !fir.ref<i32>
-! CHECK:         %[[VAL_49:.*]] = fir.convert %[[VAL_48]] : (i32) -> i64
-! CHECK:         %[[VAL_50:.*]] = arith.subi %[[VAL_49]], %[[VAL_20]] : i64
-! CHECK:         %[[VAL_51:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_47]], %[[VAL_50]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
-! CHECK:         fir.store %[[VAL_44]] to %[[VAL_51]] : !fir.ref<f32>
-! CHECK:         %[[LOADI:.*]] = fir.load %[[VAL_28]] : !fir.ref<i32>
-! CHECK:         %[[VAL_52:.*]] = arith.addi %[[LOADI]], %[[STEP]] : i32
-! CHECK:         %[[VAL_53:.*]] = arith.subi %[[VAL_37]], %[[VAL_5]] : index
-! CHECK:         br ^bb3(%[[VAL_52]], %[[VAL_53]] : i32, index)
-! CHECK:       ^bb5:
-! CHECK:         fir.store %[[VAL_36]] to %[[VAL_28]] : !fir.ref<i32>
-! CHECK:         %[[VAL_55:.*]] = fir.load %[[VAL_31]] : !fir.ref<i32>
-! CHECK:         %[[VAL_56:.*]] = fir.convert %[[VAL_55]] : (i32) -> f32
-! CHECK:         %[[VAL_57:.*]] = fir.call @fir.sin.contract.f32.f32(%[[VAL_56]]) {{.*}}: (f32) -> f32
-! CHECK:         %[[VAL_58:.*]] = fir.load %[[VAL_30]] : !fir.ref<i32>
-! CHECK:         %[[VAL_59:.*]] = fir.convert %[[VAL_58]] : (i32) -> i64
-! CHECK:         %[[VAL_60:.*]] = arith.subi %[[VAL_59]], %[[VAL_20]] : i64
-! CHECK:         %[[VAL_61:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_60]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
-! CHECK:         fir.store %[[VAL_57]] to %[[VAL_61]] : !fir.ref<f32>
-! CHECK:         %[[LOADJ:.*]] = fir.load %[[VAL_30]] : !fir.ref<i32>
-! CHECK:         %[[VAL_62:.*]] = arith.addi %[[LOADJ]], %[[STEP]] : i32
-! CHECK:         %[[VAL_63:.*]] = arith.subi %[[VAL_33]], %[[VAL_5]] : index
-! CHECK:         br ^bb1(%[[VAL_62]], %[[VAL_63]] : i32, index)
-! CHECK:       ^bb6:
-! CHECK:         fir.store %[[VAL_32]] to %[[VAL_30]] : !fir.ref<i32>
-! CHECK:         %[[VAL_65:.*]] = fir.shape %[[VAL_11]] : (index) -> !fir.shape<1>
-! CHECK:         %[[VAL_66:.*]] = fir.undefined index
-! CHECK:         %[[VAL_67:.*]] = fir.shape %[[VAL_0]], %[[VAL_0]] : (index, index) -> !fir.shape<2>
-! CHECK:         %[[VAL_68:.*]] = fir.slice %[[VAL_16]], %[[VAL_66]], %[[VAL_66]], %[[VAL_4]], %[[VAL_0]], %[[VAL_11]] : (i64, index, index, index, index, index) -> !fir.slice<2>
-! CHECK:         br ^bb7(%[[VAL_6]], %[[VAL_11]] : index, index)
-! CHECK:       ^bb7(%[[VAL_69:.*]]: index, %[[VAL_70:.*]]: index):
-! CHECK:         %[[VAL_71:.*]] = arith.cmpi sgt, %[[VAL_70]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_71]], ^bb8, ^bb9
-! CHECK:       ^bb8:
-! CHECK:         %[[VAL_72:.*]] = arith.addi %[[VAL_69]], %[[VAL_5]] : index
-! CHECK:         %[[VAL_73:.*]] = fir.array_coor %[[VAL_25]](%[[VAL_67]]) {{\[}}%[[VAL_68]]] %[[VAL_22]], %[[VAL_72]] : (!fir.ref<!fir.array<10x10xf32>>, !fir.shape<2>, !fir.slice<2>, index, index) -> !fir.ref<f32>
-! CHECK:         %[[VAL_74:.*]] = fir.load %[[VAL_73]] : !fir.ref<f32>
-! CHECK:         %[[VAL_75:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_65]]) %[[VAL_72]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         fir.store %[[VAL_74]] to %[[VAL_75]] : !fir.ref<f32>
-! CHECK:         %[[VAL_76:.*]] = arith.subi %[[VAL_70]], %[[VAL_5]] : index
-! CHECK:         br ^bb7(%[[VAL_72]], %[[VAL_76]] : index, index)
-! CHECK:       ^bb9:
-! CHECK:         %[[VAL_77:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_21]], %[[VAL_20]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_78:.*]] = fir.load %[[VAL_77]] : !fir.ref<f32>
-! CHECK:         %[[VAL_79:.*]] = fir.coordinate_of %[[VAL_26]], %[[VAL_19]] : (!fir.ref<!fir.array<3xf32>>, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_80:.*]] = fir.load %[[VAL_79]] : !fir.ref<f32>
-! CHECK:         %[[VAL_81:.*]] = arith.cmpf une, %[[VAL_78]], %[[VAL_80]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_81]], ^bb10, ^bb11
-! CHECK:       ^bb10:
-! CHECK:         %[[VAL_82:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_83:.*]] = fir.convert %[[VAL_82]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_84:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_83]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_85:.*]] = fir.address_of(@_QQclX6D69736D617463682031) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_86:.*]] = fir.convert %[[VAL_85]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_87:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_88:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_84]], %[[VAL_86]], %[[VAL_87]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_89:.*]] = fir.load %[[VAL_79]] : !fir.ref<f32>
-! CHECK:         %[[VAL_90:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_84]], %[[VAL_89]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_91:.*]] = fir.load %[[VAL_77]] : !fir.ref<f32>
-! CHECK:         %[[VAL_92:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_84]], %[[VAL_91]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_93:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_84]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb11
-! CHECK:       ^bb11:
-! CHECK:         %[[VAL_94:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_21]], %[[VAL_16]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_95:.*]] = fir.load %[[VAL_94]] : !fir.ref<f32>
-! CHECK:         %[[VAL_96:.*]] = fir.coordinate_of %[[VAL_26]], %[[VAL_20]] : (!fir.ref<!fir.array<3xf32>>, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_97:.*]] = fir.load %[[VAL_96]] : !fir.ref<f32>
-! CHECK:         %[[VAL_98:.*]] = arith.cmpf une, %[[VAL_95]], %[[VAL_97]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_98]], ^bb12, ^bb13
-! CHECK:       ^bb12:
-! CHECK:         %[[VAL_99:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_100:.*]] = fir.convert %[[VAL_99]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_101:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_100]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_102:.*]] = fir.address_of(@_QQclX6D69736D617463682032) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_103:.*]] = fir.convert %[[VAL_102]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_104:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_105:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_101]], %[[VAL_103]], %[[VAL_104]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_106:.*]] = fir.load %[[VAL_96]] : !fir.ref<f32>
-! CHECK:         %[[VAL_107:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_101]], %[[VAL_106]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_108:.*]] = fir.load %[[VAL_94]] : !fir.ref<f32>
-! CHECK:         %[[VAL_109:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_101]], %[[VAL_108]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_110:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_101]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb13
-! CHECK:       ^bb13:
-! CHECK:         %[[VAL_111:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_21]], %[[VAL_14]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_112:.*]] = fir.load %[[VAL_111]] : !fir.ref<f32>
-! CHECK:         %[[VAL_113:.*]] = fir.coordinate_of %[[VAL_26]], %[[VAL_13]] : (!fir.ref<!fir.array<3xf32>>, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_114:.*]] = fir.load %[[VAL_113]] : !fir.ref<f32>
-! CHECK:         %[[VAL_115:.*]] = arith.cmpf une, %[[VAL_112]], %[[VAL_114]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_115]], ^bb14, ^bb15
-! CHECK:       ^bb14:
-! CHECK:         %[[VAL_116:.*]] = fir.address_of(@_QQclX{{.*}} : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_117:.*]] = fir.convert %[[VAL_116]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_118:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_117]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_119:.*]] = fir.address_of(@_QQclX6D69736D617463682033) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_120:.*]] = fir.convert %[[VAL_119]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_121:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_122:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_118]], %[[VAL_120]], %[[VAL_121]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_123:.*]] = fir.load %[[VAL_113]] : !fir.ref<f32>
-! CHECK:         %[[VAL_124:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_118]], %[[VAL_123]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_125:.*]] = fir.load %[[VAL_111]] : !fir.ref<f32>
-! CHECK:         %[[VAL_126:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_118]], %[[VAL_125]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_127:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_118]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb15
-! CHECK:       ^bb15:
-! CHECK:         %[[VAL_128:.*]] = fir.shape %[[VAL_0]] : (index) -> !fir.shape<1>
-! CHECK:         %[[VAL_129:.*]] = fir.slice %[[VAL_5]], %[[VAL_0]], %[[VAL_22]] : (index, index, index) -> !fir.slice<1>
-! CHECK:         br ^bb16(%[[VAL_6]], %[[VAL_11]] : index, index)
-! CHECK:       ^bb16(%[[VAL_130:.*]]: index, %[[VAL_131:.*]]: index):
-! CHECK:         %[[VAL_132:.*]] = arith.cmpi sgt, %[[VAL_131]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_132]], ^bb17, ^bb18
-! CHECK:       ^bb17:
-! CHECK:         %[[VAL_133:.*]] = arith.addi %[[VAL_130]], %[[VAL_5]] : index
-! CHECK:         %[[VAL_134:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_65]]) %[[VAL_133]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         %[[VAL_135:.*]] = fir.load %[[VAL_134]] : !fir.ref<f32>
-! CHECK:         %[[VAL_136:.*]] = fir.array_coor %[[VAL_27]](%[[VAL_128]]) {{\[}}%[[VAL_129]]] %[[VAL_133]] : (!fir.ref<!fir.array<10xf32>>, !fir.shape<1>, !fir.slice<1>, index) -> !fir.ref<f32>
-! CHECK:         fir.store %[[VAL_135]] to %[[VAL_136]] : !fir.ref<f32>
-! CHECK:         %[[VAL_137:.*]] = arith.subi %[[VAL_131]], %[[VAL_5]] : index
-! CHECK:         br ^bb16(%[[VAL_133]], %[[VAL_137]] : index, index)
-! CHECK:       ^bb18:
-! CHECK:         %[[VAL_138:.*]] = fir.load %[[VAL_77]] : !fir.ref<f32>
-! CHECK:         %[[VAL_139:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_19]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_140:.*]] = fir.load %[[VAL_139]] : !fir.ref<f32>
-! CHECK:         %[[VAL_141:.*]] = arith.cmpf une, %[[VAL_138]], %[[VAL_140]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_141]], ^bb19, ^bb20
-! CHECK:       ^bb19:
-! CHECK:         %[[VAL_142:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_143:.*]] = fir.convert %[[VAL_142]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_144:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_143]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_145:.*]] = fir.address_of(@_QQclX6D69736D617463682034) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_146:.*]] = fir.convert %[[VAL_145]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_147:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_148:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_144]], %[[VAL_146]], %[[VAL_147]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_149:.*]] = fir.load %[[VAL_77]] : !fir.ref<f32>
-! CHECK:         %[[VAL_150:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_144]], %[[VAL_149]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_151:.*]] = fir.load %[[VAL_139]] : !fir.ref<f32>
-! CHECK:         %[[VAL_152:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_144]], %[[VAL_151]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_153:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_144]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb20
-! CHECK:       ^bb20:
-! CHECK:         %[[VAL_154:.*]] = fir.load %[[VAL_94]] : !fir.ref<f32>
-! CHECK:         %[[VAL_155:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_16]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_156:.*]] = fir.load %[[VAL_155]] : !fir.ref<f32>
-! CHECK:         %[[VAL_157:.*]] = arith.cmpf une, %[[VAL_154]], %[[VAL_156]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_157]], ^bb21, ^bb22
-! CHECK:       ^bb21:
-! CHECK:         %[[VAL_158:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_159:.*]] = fir.convert %[[VAL_158]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_160:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_159]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_161:.*]] = fir.address_of(@_QQclX6D69736D617463682035) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_162:.*]] = fir.convert %[[VAL_161]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_163:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_164:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_160]], %[[VAL_162]], %[[VAL_163]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_165:.*]] = fir.load %[[VAL_94]] : !fir.ref<f32>
-! CHECK:         %[[VAL_166:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_160]], %[[VAL_165]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_167:.*]] = fir.load %[[VAL_155]] : !fir.ref<f32>
-! CHECK:         %[[VAL_168:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_160]], %[[VAL_167]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_169:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_160]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb22
-! CHECK:       ^bb22:
-! CHECK:         %[[VAL_170:.*]] = fir.load %[[VAL_111]] : !fir.ref<f32>
-! CHECK:         %[[VAL_171:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_8]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
-! CHECK:         %[[VAL_172:.*]] = fir.load %[[VAL_171]] : !fir.ref<f32>
-! CHECK:         %[[VAL_173:.*]] = arith.cmpf une, %[[VAL_170]], %[[VAL_172]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_173]], ^bb23, ^bb24
-! CHECK:       ^bb23:
-! CHECK:         %[[VAL_174:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_175:.*]] = fir.convert %[[VAL_174]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_176:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_175]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_177:.*]] = fir.address_of(@_QQclX6D69736D617463682036) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_178:.*]] = fir.convert %[[VAL_177]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_179:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_180:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_176]], %[[VAL_178]], %[[VAL_179]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_181:.*]] = fir.load %[[VAL_111]] : !fir.ref<f32>
-! CHECK:         %[[VAL_182:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_176]], %[[VAL_181]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_183:.*]] = fir.load %[[VAL_171]] : !fir.ref<f32>
-! CHECK:         %[[VAL_184:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_176]], %[[VAL_183]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_185:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_176]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb24
-! CHECK:       ^bb24:
-! CHECK:         %[[VAL_186:.*]] = fir.address_of(@_QQro.3xi4.0) : !fir.ref<!fir.array<3xi32>>
-! CHECK:         br ^bb25(%[[VAL_6]], %[[VAL_11]] : index, index)
-! CHECK:       ^bb25(%[[VAL_187:.*]]: index, %[[VAL_188:.*]]: index):
-! CHECK:         %[[VAL_189:.*]] = arith.cmpi sgt, %[[VAL_188]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_189]], ^bb26, ^bb27
-! CHECK:       ^bb26:
-! CHECK:         %[[VAL_190:.*]] = arith.addi %[[VAL_187]], %[[VAL_5]] : index
-! CHECK:         %[[VAL_191:.*]] = fir.array_coor %[[VAL_186]](%[[VAL_65]]) %[[VAL_190]] : (!fir.ref<!fir.array<3xi32>>, !fir.shape<1>, index) -> !fir.ref<i32>
-! CHECK:         %[[VAL_192:.*]] = fir.load %[[VAL_191]] : !fir.ref<i32>
-! CHECK:         %[[VAL_193:.*]] = fir.array_coor %[[VAL_29]](%[[VAL_65]]) %[[VAL_190]] : (!fir.ref<!fir.array<3xi32>>, !fir.shape<1>, index) -> !fir.ref<i32>
-! CHECK:         fir.store %[[VAL_192]] to %[[VAL_193]] : !fir.ref<i32>
-! CHECK:         %[[VAL_194:.*]] = arith.subi %[[VAL_188]], %[[VAL_5]] : index
-! CHECK:         br ^bb25(%[[VAL_190]], %[[VAL_194]] : index, index)
-! CHECK:       ^bb27:
-! CHECK:         %[[VAL_195:.*]] = fir.allocmem !fir.array<3xf32>
-! CHECK:         br ^bb28(%[[VAL_6]], %[[VAL_11]] : index, index)
-! CHECK:       ^bb28(%[[VAL_196:.*]]: index, %[[VAL_197:.*]]: index):
-! CHECK:         %[[VAL_198:.*]] = arith.cmpi sgt, %[[VAL_197]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_198]], ^bb29, ^bb30
-! CHECK:       ^bb29:
-! CHECK:         %[[VAL_199:.*]] = arith.addi %[[VAL_196]], %[[VAL_5]] : index
-! CHECK:         %[[VAL_200:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_65]]) %[[VAL_199]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         %[[VAL_201:.*]] = fir.array_coor %[[VAL_195]](%[[VAL_65]]) %[[VAL_199]] : (!fir.heap<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         %[[VAL_202:.*]] = fir.load %[[VAL_200]] : !fir.ref<f32>
-! CHECK:         fir.store %[[VAL_202]] to %[[VAL_201]] : !fir.ref<f32>
-! CHECK:         %[[VAL_203:.*]] = arith.subi %[[VAL_197]], %[[VAL_5]] : index
-! CHECK:         br ^bb28(%[[VAL_199]], %[[VAL_203]] : index, index)
-! CHECK:       ^bb30(%[[VAL_205:.*]]: index, %[[VAL_206:.*]]: index):
-! CHECK:         %[[VAL_207:.*]] = arith.cmpi sgt, %[[VAL_206]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_207]], ^bb31, ^bb32(%[[VAL_6]], %[[VAL_11]] : index, index)
-! CHECK:       ^bb31:
-! CHECK:         %[[VAL_208:.*]] = arith.addi %[[VAL_205]], %[[VAL_5]] : index
-! CHECK:         %[[VAL_209:.*]] = fir.array_coor %[[VAL_29]](%[[VAL_65]]) %[[VAL_208]] : (!fir.ref<!fir.array<3xi32>>, !fir.shape<1>, index) -> !fir.ref<i32>
-! CHECK:         %[[VAL_210:.*]] = fir.load %[[VAL_209]] : !fir.ref<i32>
-! CHECK:         %[[VAL_211:.*]] = fir.convert %[[VAL_210]] : (i32) -> index
-! CHECK:         %[[VAL_212:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_65]]) %[[VAL_211]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         %[[VAL_213:.*]] = fir.load %[[VAL_212]] : !fir.ref<f32>
-! CHECK:         %[[VAL_214:.*]] = fir.array_coor %[[VAL_195]](%[[VAL_65]]) %[[VAL_208]] : (!fir.heap<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         fir.store %[[VAL_213]] to %[[VAL_214]] : !fir.ref<f32>
-! CHECK:         %[[VAL_215:.*]] = arith.subi %[[VAL_206]], %[[VAL_5]] : index
-! CHECK:         br ^bb30(%[[VAL_208]], %[[VAL_215]] : index, index)
-! CHECK:       ^bb32(%[[VAL_216:.*]]: index, %[[VAL_217:.*]]: index):
-! CHECK:         %[[VAL_218:.*]] = arith.cmpi sgt, %[[VAL_217]], %[[VAL_6]] : index
-! CHECK:         cond_br %[[VAL_218]], ^bb33, ^bb34
-! CHECK:       ^bb33:
-! CHECK:         %[[VAL_219:.*]] = arith.addi %[[VAL_216]], %[[VAL_5]] : index
-! CHECK:         %[[VAL_220:.*]] = fir.array_coor %[[VAL_195]](%[[VAL_65]]) %[[VAL_219]] : (!fir.heap<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         %[[VAL_221:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_65]]) %[[VAL_219]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
-! CHECK:         %[[VAL_222:.*]] = fir.load %[[VAL_220]] : !fir.ref<f32>
-! CHECK:         fir.store %[[VAL_222]] to %[[VAL_221]] : !fir.ref<f32>
-! CHECK:         %[[VAL_223:.*]] = arith.subi %[[VAL_217]], %[[VAL_5]] : index
-! CHECK:         br ^bb32(%[[VAL_219]], %[[VAL_223]] : index, index)
-! CHECK:       ^bb34:
-! CHECK:         fir.freemem %[[VAL_195]] : !fir.heap<!fir.array<3xf32>>
-! CHECK:         %[[VAL_224:.*]] = fir.load %[[VAL_77]] : !fir.ref<f32>
-! CHECK:         %[[VAL_225:.*]] = fir.load %[[VAL_96]] : !fir.ref<f32>
-! CHECK:         %[[VAL_226:.*]] = arith.cmpf une, %[[VAL_224]], %[[VAL_225]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_226]], ^bb35, ^bb36
-! CHECK:       ^bb35:
-! CHECK:         %[[VAL_227:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_228:.*]] = fir.convert %[[VAL_227]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_229:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_228]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_230:.*]] = fir.address_of(@_QQclX6D69736D617463682037) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_231:.*]] = fir.convert %[[VAL_230]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_232:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_233:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_229]], %[[VAL_231]], %[[VAL_232]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_234:.*]] = fir.load %[[VAL_77]] : !fir.ref<f32>
-! CHECK:         %[[VAL_235:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_229]], %[[VAL_234]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_236:.*]] = fir.load %[[VAL_96]] : !fir.ref<f32>
-! CHECK:         %[[VAL_237:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_229]], %[[VAL_236]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_238:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_229]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb36
-! CHECK:       ^bb36:
-! CHECK:         %[[VAL_239:.*]] = fir.load %[[VAL_94]] : !fir.ref<f32>
-! CHECK:         %[[VAL_240:.*]] = fir.load %[[VAL_113]] : !fir.ref<f32>
-! CHECK:         %[[VAL_241:.*]] = arith.cmpf une, %[[VAL_239]], %[[VAL_240]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_241]], ^bb37, ^bb38
-! CHECK:       ^bb37:
-! CHECK:         %[[VAL_242:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_243:.*]] = fir.convert %[[VAL_242]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_244:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_243]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_245:.*]] = fir.address_of(@_QQclX6D69736D617463682038) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_246:.*]] = fir.convert %[[VAL_245]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_247:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_248:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_244]], %[[VAL_246]], %[[VAL_247]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_249:.*]] = fir.load %[[VAL_94]] : !fir.ref<f32>
-! CHECK:         %[[VAL_250:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_244]], %[[VAL_249]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_251:.*]] = fir.load %[[VAL_113]] : !fir.ref<f32>
-! CHECK:         %[[VAL_252:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_244]], %[[VAL_251]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_253:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_244]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb38
-! CHECK:       ^bb38:
-! CHECK:         %[[VAL_254:.*]] = fir.load %[[VAL_111]] : !fir.ref<f32>
-! CHECK:         %[[VAL_255:.*]] = fir.load %[[VAL_79]] : !fir.ref<f32>
-! CHECK:         %[[VAL_256:.*]] = arith.cmpf une, %[[VAL_254]], %[[VAL_255]] {{.*}} : f32
-! CHECK:         cond_br %[[VAL_256]], ^bb39, ^bb40
-! CHECK:       ^bb39:
-! CHECK:         %[[VAL_257:.*]] = fir.address_of(@_QQclX{{.*}}) : !fir.ref<!fir.char<1,
-! CHECK:         %[[VAL_258:.*]] = fir.convert %[[VAL_257]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_259:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_18]], %[[VAL_258]], %{{.*}}) {{.*}}: (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
-! CHECK:         %[[VAL_260:.*]] = fir.address_of(@_QQclX6D69736D617463682039) : !fir.ref<!fir.char<1,10>>
-! CHECK:         %[[VAL_261:.*]] = fir.convert %[[VAL_260]] : (!fir.ref<!fir.char<1,10>>) -> !fir.ref<i8>
-! CHECK:         %[[VAL_262:.*]] = fir.convert %[[VAL_0]] : (index) -> i64
-! CHECK:         %[[VAL_263:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_259]], %[[VAL_261]], %[[VAL_262]]) {{.*}}: (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
-! CHECK:         %[[VAL_264:.*]] = fir.load %[[VAL_111]] : !fir.ref<f32>
-! CHECK:         %[[VAL_265:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_259]], %[[VAL_264]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_266:.*]] = fir.load %[[VAL_79]] : !fir.ref<f32>
-! CHECK:         %[[VAL_267:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_259]], %[[VAL_266]]) {{.*}}: (!fir.ref<i8>, f32) -> i1
-! CHECK:         %[[VAL_268:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_259]]) {{.*}}: (!fir.ref<i8>) -> i32
-! CHECK:         br ^bb40
-! CHECK:       ^bb40:
-! CHECK:         return
-! CHECK:       }
+! CHECK-LABEL:   func.func @_QQmain() attributes {fir.bindc_name = "p"} {
+! CHECK-DAG:           %[[VAL_0:.*]] = arith.constant 8 : i64
+! CHECK-DAG:           %[[VAL_1:.*]] = arith.constant 2 : i64
+! CHECK-DAG:           %[[VAL_2:.*]] = arith.constant 7 : i64
+! CHECK-DAG:           %[[VAL_3:.*]] = arith.constant 0 : i64
+! CHECK-DAG:           %[[VAL_4:.*]] = arith.constant 3 : i64
+! CHECK-DAG:           %[[VAL_5:.*]] = arith.constant 2 : index
+! CHECK-DAG:           %[[VAL_6:.*]] = arith.constant 4 : index
+! CHECK-DAG:           %[[VAL_7:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_8:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_9:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_10:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_11:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_12:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_13:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_14:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_15:.*]] = arith.constant {{[0-9]+}} : i32
+! CHECK-DAG:           %[[VAL_16:.*]] = arith.constant 6 : i32
+! CHECK-DAG:           %[[VAL_17:.*]] = arith.constant 0 : index
+! CHECK-DAG:           %[[VAL_18:.*]] = arith.constant 4 : i64
+! CHECK-DAG:           %[[VAL_19:.*]] = arith.constant 1 : i64
+! CHECK-DAG:           %[[VAL_20:.*]] = arith.constant 1 : index
+! CHECK-DAG:           %[[VAL_21:.*]] = arith.constant 1 : i32
+! CHECK-DAG:           %[[VAL_22:.*]] = arith.constant 0 : i32
+! CHECK-DAG:           %[[VAL_23:.*]] = arith.constant 3 : index
+! CHECK-DAG:           %[[VAL_24:.*]] = arith.constant 10 : index
+! CHECK-DAG:           %[[VAL_25:.*]] = fir.address_of(@_QFEa1) : !fir.ref<!fir.array<10x10xf32>>
+! CHECK-DAG:           %[[VAL_26:.*]] = fir.alloca !fir.array<3xf32> {bindc_name = "a2", uniq_name = "_QFEa2"}
+! CHECK-DAG:           %[[VAL_27:.*]] = fir.address_of(@_QFEa3) : !fir.ref<!fir.array<10xf32>>
+! CHECK-DAG:           %[[VAL_28:.*]] = fir.alloca i32 {bindc_name = "i", uniq_name = "_QFEi"}
+! CHECK-DAG:           %[[VAL_29:.*]] = fir.alloca !fir.array<3xi32> {bindc_name = "iv", uniq_name = "_QFEiv"}
+! CHECK-DAG:           %[[VAL_30:.*]] = fir.alloca i32 {bindc_name = "j", uniq_name = "_QFEj"}
+! CHECK-DAG:           %[[VAL_31:.*]] = fir.alloca i32 {bindc_name = "k", uniq_name = "_QFEk"}
+! CHECK:           fir.store %[[VAL_22]] to %[[VAL_31]] : !fir.ref<i32>
+! CHECK:           %[[VAL_32:.*]] = fir.convert %[[VAL_20]] : (index) -> i32
+! CHECK:           cf.br ^bb1(%[[VAL_32]], %[[VAL_24]] : i32, index)
+! CHECK:         ^bb1(%[[VAL_33:.*]]: i32, %[[VAL_34:.*]]: index):
+! CHECK:           %[[VAL_35:.*]] = arith.cmpi sgt, %[[VAL_34]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_35]], ^bb2, ^bb6
+! CHECK:         ^bb2:
+! CHECK:           fir.store %[[VAL_33]] to %[[VAL_30]] : !fir.ref<i32>
+! CHECK:           cf.br ^bb3(%[[VAL_32]], %[[VAL_24]] : i32, index)
+! CHECK:         ^bb3(%[[VAL_36:.*]]: i32, %[[VAL_37:.*]]: index):
+! CHECK:           %[[VAL_38:.*]] = arith.cmpi sgt, %[[VAL_37]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_38]], ^bb4, ^bb5
+! CHECK:         ^bb4:
+! CHECK:           fir.store %[[VAL_36]] to %[[VAL_28]] : !fir.ref<i32>
+! CHECK:           %[[VAL_39:.*]] = fir.load %[[VAL_31]] : !fir.ref<i32>
+! CHECK:           %[[VAL_40:.*]] = arith.addi %[[VAL_39]], %[[VAL_21]] : i32
+! CHECK:           fir.store %[[VAL_40]] to %[[VAL_31]] : !fir.ref<i32>
+! CHECK:           %[[VAL_41:.*]] = fir.load %[[VAL_31]] : !fir.ref<i32>
+! CHECK:           %[[VAL_42:.*]] = fir.convert %[[VAL_41]] : (i32) -> f32
+! CHECK:           %[[VAL_43:.*]] = fir.call @fir.cos.contract.f32.f32(%[[VAL_42]]) fastmath<contract> : (f32) -> f32
+! CHECK:           %[[VAL_44:.*]] = fir.load %[[VAL_28]] : !fir.ref<i32>
+! CHECK:           %[[VAL_45:.*]] = fir.convert %[[VAL_44]] : (i32) -> i64
+! CHECK:           %[[VAL_46:.*]] = arith.subi %[[VAL_45]], %[[VAL_19]] : i64
+! CHECK:           %[[VAL_47:.*]] = fir.load %[[VAL_30]] : !fir.ref<i32>
+! CHECK:           %[[VAL_48:.*]] = fir.convert %[[VAL_47]] : (i32) -> i64
+! CHECK:           %[[VAL_49:.*]] = arith.subi %[[VAL_48]], %[[VAL_19]] : i64
+! CHECK:           %[[VAL_50:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_46]], %[[VAL_49]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
+! CHECK:           fir.store %[[VAL_43]] to %[[VAL_50]] : !fir.ref<f32>
+! CHECK:           %[[VAL_51:.*]] = fir.load %[[VAL_28]] : !fir.ref<i32>
+! CHECK:           %[[VAL_52:.*]] = arith.addi %[[VAL_51]], %[[VAL_32]] : i32
+! CHECK:           %[[VAL_53:.*]] = arith.subi %[[VAL_37]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb3(%[[VAL_52]], %[[VAL_53]] : i32, index)
+! CHECK:         ^bb5:
+! CHECK:           fir.store %[[VAL_36]] to %[[VAL_28]] : !fir.ref<i32>
+! CHECK:           %[[VAL_54:.*]] = fir.load %[[VAL_31]] : !fir.ref<i32>
+! CHECK:           %[[VAL_55:.*]] = fir.convert %[[VAL_54]] : (i32) -> f32
+! CHECK:           %[[VAL_56:.*]] = fir.call @fir.sin.contract.f32.f32(%[[VAL_55]]) fastmath<contract> : (f32) -> f32
+! CHECK:           %[[VAL_57:.*]] = fir.load %[[VAL_30]] : !fir.ref<i32>
+! CHECK:           %[[VAL_58:.*]] = fir.convert %[[VAL_57]] : (i32) -> i64
+! CHECK:           %[[VAL_59:.*]] = arith.subi %[[VAL_58]], %[[VAL_19]] : i64
+! CHECK:           %[[VAL_60:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_59]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
+! CHECK:           fir.store %[[VAL_56]] to %[[VAL_60]] : !fir.ref<f32>
+! CHECK:           %[[VAL_61:.*]] = fir.load %[[VAL_30]] : !fir.ref<i32>
+! CHECK:           %[[VAL_62:.*]] = arith.addi %[[VAL_61]], %[[VAL_32]] : i32
+! CHECK:           %[[VAL_63:.*]] = arith.subi %[[VAL_34]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb1(%[[VAL_62]], %[[VAL_63]] : i32, index)
+! CHECK:         ^bb6:
+! CHECK:           fir.store %[[VAL_33]] to %[[VAL_30]] : !fir.ref<i32>
+! CHECK:           %[[VAL_64:.*]] = fir.shape %[[VAL_23]] : (index) -> !fir.shape<1>
+! CHECK:           %[[VAL_65:.*]] = fir.undefined index
+! CHECK:           %[[VAL_66:.*]] = fir.shape %[[VAL_24]], %[[VAL_24]] : (index, index) -> !fir.shape<2>
+! CHECK:           %[[VAL_67:.*]] = fir.slice %[[VAL_18]], %[[VAL_65]], %[[VAL_65]], %[[VAL_5]], %[[VAL_24]], %[[VAL_23]] : (i64, index, index, index, index, index) -> !fir.slice<2>
+! CHECK:           cf.br ^bb7(%[[VAL_17]], %[[VAL_23]] : index, index)
+! CHECK:         ^bb7(%[[VAL_68:.*]]: index, %[[VAL_69:.*]]: index):
+! CHECK:           %[[VAL_70:.*]] = arith.cmpi sgt, %[[VAL_69]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_70]], ^bb8, ^bb9
+! CHECK:         ^bb8:
+! CHECK:           %[[VAL_71:.*]] = arith.addi %[[VAL_68]], %[[VAL_20]] : index
+! CHECK:           %[[VAL_72:.*]] = fir.array_coor %[[VAL_25]](%[[VAL_66]]) {{\[}}%[[VAL_67]]] %[[VAL_6]], %[[VAL_71]] : (!fir.ref<!fir.array<10x10xf32>>, !fir.shape<2>, !fir.slice<2>, index, index) -> !fir.ref<f32>
+! CHECK:           %[[VAL_73:.*]] = fir.load %[[VAL_72]] : !fir.ref<f32>
+! CHECK:           %[[VAL_74:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_64]]) %[[VAL_71]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           fir.store %[[VAL_73]] to %[[VAL_74]] : !fir.ref<f32>
+! CHECK:           %[[VAL_75:.*]] = arith.subi %[[VAL_69]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb7(%[[VAL_71]], %[[VAL_75]] : index, index)
+! CHECK:         ^bb9:
+! CHECK:           %[[VAL_76:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_4]], %[[VAL_19]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_77:.*]] = fir.load %[[VAL_76]] : !fir.ref<f32>
+! CHECK:           %[[VAL_78:.*]] = fir.coordinate_of %[[VAL_26]], %[[VAL_3]] : (!fir.ref<!fir.array<3xf32>>, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_79:.*]] = fir.load %[[VAL_78]] : !fir.ref<f32>
+! CHECK:           %[[VAL_80:.*]] = arith.cmpf une, %[[VAL_77]], %[[VAL_79]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_80]], ^bb10, ^bb11
+! CHECK:         ^bb10:
+! CHECK:           %[[VAL_81:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_82:.*]] = fir.convert %[[VAL_81]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_83:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_82]], %[[VAL_15]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_84:.*]] = fir.address_of(@_QQclX6D69736D617463682031) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_85:.*]] = fir.convert %[[VAL_84]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_86:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_87:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_83]], %[[VAL_85]], %[[VAL_86]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_88:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_83]], %[[VAL_79]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_89:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_83]], %[[VAL_77]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_90:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_83]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb11
+! CHECK:         ^bb11:
+! CHECK:           %[[VAL_91:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_4]], %[[VAL_18]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_92:.*]] = fir.load %[[VAL_91]] : !fir.ref<f32>
+! CHECK:           %[[VAL_93:.*]] = fir.coordinate_of %[[VAL_26]], %[[VAL_19]] : (!fir.ref<!fir.array<3xf32>>, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_94:.*]] = fir.load %[[VAL_93]] : !fir.ref<f32>
+! CHECK:           %[[VAL_95:.*]] = arith.cmpf une, %[[VAL_92]], %[[VAL_94]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_95]], ^bb12, ^bb13
+! CHECK:         ^bb12:
+! CHECK:           %[[VAL_96:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_97:.*]] = fir.convert %[[VAL_96]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_98:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_97]], %[[VAL_14]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_99:.*]] = fir.address_of(@_QQclX6D69736D617463682032) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_100:.*]] = fir.convert %[[VAL_99]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_101:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_102:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_98]], %[[VAL_100]], %[[VAL_101]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_103:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_98]], %[[VAL_94]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_104:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_98]], %[[VAL_92]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_105:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_98]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb13
+! CHECK:         ^bb13:
+! CHECK:           %[[VAL_106:.*]] = fir.coordinate_of %[[VAL_25]], %[[VAL_4]], %[[VAL_2]] : (!fir.ref<!fir.array<10x10xf32>>, i64, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_107:.*]] = fir.load %[[VAL_106]] : !fir.ref<f32>
+! CHECK:           %[[VAL_108:.*]] = fir.coordinate_of %[[VAL_26]], %[[VAL_1]] : (!fir.ref<!fir.array<3xf32>>, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_109:.*]] = fir.load %[[VAL_108]] : !fir.ref<f32>
+! CHECK:           %[[VAL_110:.*]] = arith.cmpf une, %[[VAL_107]], %[[VAL_109]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_110]], ^bb14, ^bb15
+! CHECK:         ^bb14:
+! CHECK:           %[[VAL_111:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_112:.*]] = fir.convert %[[VAL_111]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_113:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_112]], %[[VAL_13]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_114:.*]] = fir.address_of(@_QQclX6D69736D617463682033) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_115:.*]] = fir.convert %[[VAL_114]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_116:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_117:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_113]], %[[VAL_115]], %[[VAL_116]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_118:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_113]], %[[VAL_109]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_119:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_113]], %[[VAL_107]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_120:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_113]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb15
+! CHECK:         ^bb15:
+! CHECK:           %[[VAL_121:.*]] = fir.shape %[[VAL_24]] : (index) -> !fir.shape<1>
+! CHECK:           %[[VAL_122:.*]] = fir.slice %[[VAL_20]], %[[VAL_24]], %[[VAL_6]] : (index, index, index) -> !fir.slice<1>
+! CHECK:           cf.br ^bb16(%[[VAL_17]], %[[VAL_23]] : index, index)
+! CHECK:         ^bb16(%[[VAL_123:.*]]: index, %[[VAL_124:.*]]: index):
+! CHECK:           %[[VAL_125:.*]] = arith.cmpi sgt, %[[VAL_124]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_125]], ^bb17, ^bb18
+! CHECK:         ^bb17:
+! CHECK:           %[[VAL_126:.*]] = arith.addi %[[VAL_123]], %[[VAL_20]] : index
+! CHECK:           %[[VAL_127:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_64]]) %[[VAL_126]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           %[[VAL_128:.*]] = fir.load %[[VAL_127]] : !fir.ref<f32>
+! CHECK:           %[[VAL_129:.*]] = fir.array_coor %[[VAL_27]](%[[VAL_121]]) {{\[}}%[[VAL_122]]] %[[VAL_126]] : (!fir.ref<!fir.array<10xf32>>, !fir.shape<1>, !fir.slice<1>, index) -> !fir.ref<f32>
+! CHECK:           fir.store %[[VAL_128]] to %[[VAL_129]] : !fir.ref<f32>
+! CHECK:           %[[VAL_130:.*]] = arith.subi %[[VAL_124]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb16(%[[VAL_126]], %[[VAL_130]] : index, index)
+! CHECK:         ^bb18:
+! CHECK:           %[[VAL_131:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_3]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_132:.*]] = fir.load %[[VAL_131]] : !fir.ref<f32>
+! CHECK:           %[[VAL_133:.*]] = arith.cmpf une, %[[VAL_77]], %[[VAL_132]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_133]], ^bb19, ^bb20
+! CHECK:         ^bb19:
+! CHECK:           %[[VAL_134:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_135:.*]] = fir.convert %[[VAL_134]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_136:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_135]], %[[VAL_12]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_137:.*]] = fir.address_of(@_QQclX6D69736D617463682034) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_138:.*]] = fir.convert %[[VAL_137]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_139:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_140:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_136]], %[[VAL_138]], %[[VAL_139]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_141:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_136]], %[[VAL_77]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_142:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_136]], %[[VAL_132]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_143:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_136]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb20
+! CHECK:         ^bb20:
+! CHECK:           %[[VAL_144:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_18]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_145:.*]] = fir.load %[[VAL_144]] : !fir.ref<f32>
+! CHECK:           %[[VAL_146:.*]] = arith.cmpf une, %[[VAL_92]], %[[VAL_145]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_146]], ^bb21, ^bb22
+! CHECK:         ^bb21:
+! CHECK:           %[[VAL_147:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_148:.*]] = fir.convert %[[VAL_147]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_149:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_148]], %[[VAL_11]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_150:.*]] = fir.address_of(@_QQclX6D69736D617463682035) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_151:.*]] = fir.convert %[[VAL_150]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_152:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_153:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_149]], %[[VAL_151]], %[[VAL_152]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_154:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_149]], %[[VAL_92]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_155:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_149]], %[[VAL_145]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_156:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_149]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb22
+! CHECK:         ^bb22:
+! CHECK:           %[[VAL_157:.*]] = fir.coordinate_of %[[VAL_27]], %[[VAL_0]] : (!fir.ref<!fir.array<10xf32>>, i64) -> !fir.ref<f32>
+! CHECK:           %[[VAL_158:.*]] = fir.load %[[VAL_157]] : !fir.ref<f32>
+! CHECK:           %[[VAL_159:.*]] = arith.cmpf une, %[[VAL_107]], %[[VAL_158]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_159]], ^bb23, ^bb24
+! CHECK:         ^bb23:
+! CHECK:           %[[VAL_160:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_161:.*]] = fir.convert %[[VAL_160]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_162:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_161]], %[[VAL_10]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_163:.*]] = fir.address_of(@_QQclX6D69736D617463682036) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_164:.*]] = fir.convert %[[VAL_163]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_165:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_166:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_162]], %[[VAL_164]], %[[VAL_165]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_167:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_162]], %[[VAL_107]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_168:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_162]], %[[VAL_158]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_169:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_162]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb24
+! CHECK:         ^bb24:
+! CHECK:           %[[VAL_170:.*]] = fir.address_of(@_QQro.3xi4.0) : !fir.ref<!fir.array<3xi32>>
+! CHECK:           cf.br ^bb25(%[[VAL_17]], %[[VAL_23]] : index, index)
+! CHECK:         ^bb25(%[[VAL_171:.*]]: index, %[[VAL_172:.*]]: index):
+! CHECK:           %[[VAL_173:.*]] = arith.cmpi sgt, %[[VAL_172]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_173]], ^bb26, ^bb27
+! CHECK:         ^bb26:
+! CHECK:           %[[VAL_174:.*]] = arith.addi %[[VAL_171]], %[[VAL_20]] : index
+! CHECK:           %[[VAL_175:.*]] = fir.array_coor %[[VAL_170]](%[[VAL_64]]) %[[VAL_174]] : (!fir.ref<!fir.array<3xi32>>, !fir.shape<1>, index) -> !fir.ref<i32>
+! CHECK:           %[[VAL_176:.*]] = fir.load %[[VAL_175]] : !fir.ref<i32>
+! CHECK:           %[[VAL_177:.*]] = fir.array_coor %[[VAL_29]](%[[VAL_64]]) %[[VAL_174]] : (!fir.ref<!fir.array<3xi32>>, !fir.shape<1>, index) -> !fir.ref<i32>
+! CHECK:           fir.store %[[VAL_176]] to %[[VAL_177]] : !fir.ref<i32>
+! CHECK:           %[[VAL_178:.*]] = arith.subi %[[VAL_172]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb25(%[[VAL_174]], %[[VAL_178]] : index, index)
+! CHECK:         ^bb27:
+! CHECK:           %[[VAL_179:.*]] = fir.allocmem !fir.array<3xf32>
+! CHECK:           cf.br ^bb28(%[[VAL_17]], %[[VAL_23]] : index, index)
+! CHECK:         ^bb28(%[[VAL_180:.*]]: index, %[[VAL_181:.*]]: index):
+! CHECK:           %[[VAL_182:.*]] = arith.cmpi sgt, %[[VAL_181]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_182]], ^bb29, ^bb30(%[[VAL_17]], %[[VAL_23]] : index, index)
+! CHECK:         ^bb29:
+! CHECK:           %[[VAL_183:.*]] = arith.addi %[[VAL_180]], %[[VAL_20]] : index
+! CHECK:           %[[VAL_184:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_64]]) %[[VAL_183]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           %[[VAL_185:.*]] = fir.array_coor %[[VAL_179]](%[[VAL_64]]) %[[VAL_183]] : (!fir.heap<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           %[[VAL_186:.*]] = fir.load %[[VAL_184]] : !fir.ref<f32>
+! CHECK:           fir.store %[[VAL_186]] to %[[VAL_185]] : !fir.ref<f32>
+! CHECK:           %[[VAL_187:.*]] = arith.subi %[[VAL_181]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb28(%[[VAL_183]], %[[VAL_187]] : index, index)
+! CHECK:         ^bb30(%[[VAL_188:.*]]: index, %[[VAL_189:.*]]: index):
+! CHECK:           %[[VAL_190:.*]] = arith.cmpi sgt, %[[VAL_189]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_190]], ^bb31, ^bb32(%[[VAL_17]], %[[VAL_23]] : index, index)
+! CHECK:         ^bb31:
+! CHECK:           %[[VAL_191:.*]] = arith.addi %[[VAL_188]], %[[VAL_20]] : index
+! CHECK:           %[[VAL_192:.*]] = fir.array_coor %[[VAL_29]](%[[VAL_64]]) %[[VAL_191]] : (!fir.ref<!fir.array<3xi32>>, !fir.shape<1>, index) -> !fir.ref<i32>
+! CHECK:           %[[VAL_193:.*]] = fir.load %[[VAL_192]] : !fir.ref<i32>
+! CHECK:           %[[VAL_194:.*]] = fir.convert %[[VAL_193]] : (i32) -> index
+! CHECK:           %[[VAL_195:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_64]]) %[[VAL_194]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           %[[VAL_196:.*]] = fir.load %[[VAL_195]] : !fir.ref<f32>
+! CHECK:           %[[VAL_197:.*]] = fir.array_coor %[[VAL_179]](%[[VAL_64]]) %[[VAL_191]] : (!fir.heap<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           fir.store %[[VAL_196]] to %[[VAL_197]] : !fir.ref<f32>
+! CHECK:           %[[VAL_198:.*]] = arith.subi %[[VAL_189]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb30(%[[VAL_191]], %[[VAL_198]] : index, index)
+! CHECK:         ^bb32(%[[VAL_199:.*]]: index, %[[VAL_200:.*]]: index):
+! CHECK:           %[[VAL_201:.*]] = arith.cmpi sgt, %[[VAL_200]], %[[VAL_17]] : index
+! CHECK:           cf.cond_br %[[VAL_201]], ^bb33, ^bb34
+! CHECK:         ^bb33:
+! CHECK:           %[[VAL_202:.*]] = arith.addi %[[VAL_199]], %[[VAL_20]] : index
+! CHECK:           %[[VAL_203:.*]] = fir.array_coor %[[VAL_179]](%[[VAL_64]]) %[[VAL_202]] : (!fir.heap<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           %[[VAL_204:.*]] = fir.array_coor %[[VAL_26]](%[[VAL_64]]) %[[VAL_202]] : (!fir.ref<!fir.array<3xf32>>, !fir.shape<1>, index) -> !fir.ref<f32>
+! CHECK:           %[[VAL_205:.*]] = fir.load %[[VAL_203]] : !fir.ref<f32>
+! CHECK:           fir.store %[[VAL_205]] to %[[VAL_204]] : !fir.ref<f32>
+! CHECK:           %[[VAL_206:.*]] = arith.subi %[[VAL_200]], %[[VAL_20]] : index
+! CHECK:           cf.br ^bb32(%[[VAL_202]], %[[VAL_206]] : index, index)
+! CHECK:         ^bb34:
+! CHECK:           fir.freemem %[[VAL_179]] : !fir.heap<!fir.array<3xf32>>
+! CHECK:           %[[VAL_207:.*]] = arith.cmpf une, %[[VAL_77]], %[[VAL_94]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_207]], ^bb35, ^bb36
+! CHECK:         ^bb35:
+! CHECK:           %[[VAL_208:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_209:.*]] = fir.convert %[[VAL_208]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_210:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_209]], %[[VAL_9]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_211:.*]] = fir.address_of(@_QQclX6D69736D617463682037) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_212:.*]] = fir.convert %[[VAL_211]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_213:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_214:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_210]], %[[VAL_212]], %[[VAL_213]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_215:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_210]], %[[VAL_77]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_216:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_210]], %[[VAL_94]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_217:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_210]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb36
+! CHECK:         ^bb36:
+! CHECK:           %[[VAL_218:.*]] = arith.cmpf une, %[[VAL_92]], %[[VAL_109]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_218]], ^bb37, ^bb38
+! CHECK:         ^bb37:
+! CHECK:           %[[VAL_219:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_220:.*]] = fir.convert %[[VAL_219]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_221:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_220]], %[[VAL_8]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_222:.*]] = fir.address_of(@_QQclX6D69736D617463682038) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_223:.*]] = fir.convert %[[VAL_222]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_224:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_225:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_221]], %[[VAL_223]], %[[VAL_224]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_226:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_221]], %[[VAL_92]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_227:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_221]], %[[VAL_109]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_228:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_221]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb38
+! CHECK:         ^bb38:
+! CHECK:           %[[VAL_229:.*]] = arith.cmpf une, %[[VAL_107]], %[[VAL_79]] fastmath<contract> : f32
+! CHECK:           cf.cond_br %[[VAL_229]], ^bb39, ^bb40
+! CHECK:         ^bb39:
+! CHECK:           %[[VAL_230:.*]] = fir.address_of(@_QQclX3bee04f64cc15c75e483e8463401fb13) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_231:.*]] = fir.convert %[[VAL_230]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_232:.*]] = fir.call @_FortranAioBeginExternalListOutput(%[[VAL_16]], %[[VAL_231]], %[[VAL_7]]) {{.+}} (i32, !fir.ref<i8>, i32) -> !fir.ref<i8>
+! CHECK:           %[[VAL_233:.*]] = fir.address_of(@_QQclX6D69736D617463682039) : !fir.ref<!fir.char<1,{{.*}}>>
+! CHECK:           %[[VAL_234:.*]] = fir.convert %[[VAL_233]] : (!fir.ref<!fir.char<1,{{.*}}>>) -> !fir.ref<i8>
+! CHECK:           %[[VAL_235:.*]] = fir.convert %[[VAL_24]] : (index) -> i64
+! CHECK:           %[[VAL_236:.*]] = fir.call @_FortranAioOutputAscii(%[[VAL_232]], %[[VAL_234]], %[[VAL_235]]) {{.+}} (!fir.ref<i8>, !fir.ref<i8>, i64) -> i1
+! CHECK:           %[[VAL_237:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_232]], %[[VAL_107]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_238:.*]] = fir.call @_FortranAioOutputReal32(%[[VAL_232]], %[[VAL_79]]) {{.+}} (!fir.ref<i8>, f32) -> i1
+! CHECK:           %[[VAL_239:.*]] = fir.call @_FortranAioEndIoStatement(%[[VAL_232]]) {{.+}} (!fir.ref<i8>) -> i32
+! CHECK:           cf.br ^bb40
+! CHECK:         ^bb40:
+! CHECK:           return
+! CHECK:         }
+
 
 program p
   real :: a1(10,10)

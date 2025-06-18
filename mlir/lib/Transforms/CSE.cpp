@@ -1,4 +1,4 @@
-//===- CSE.cpp - Common Sub-expression Elimination ------------------------===//
+//===- CSE.cpp - Common Sub-Expression Elimination ------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -15,6 +15,7 @@
 
 #include "mlir/IR/Dominance.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/Interfaces/ControlFlowInterfaces.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/Passes.h"
@@ -22,7 +23,10 @@
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/RecyclingAllocator.h"
+#define DEBUG_TYPE "cse-debug"
+#include "llvm/ADT/STLExtras.h"
 #include <deque>
 
 namespace mlir {
@@ -175,14 +179,72 @@ void CSEDriver::replaceUsesAndDelete(ScopedMapTy &knownValues, Operation *op,
   ++numCSE;
 }
 
+static bool opHasOnlySimpleRegions(Operation *op) {
+  return llvm::all_of(op->getRegions(), [](Region &region) {
+    return region.hasOneBlock() || region.empty();
+  });
+}
+
+static bool opHasUnsafeSideEffect(Operation *op) {
+  std::optional<SmallVector<MemoryEffects::EffectInstance>> effects =
+      getEffectsRecursively(op);
+  if (!effects) {
+    // TODO: Do we need to handle other effects generically?
+    // If the operation does not implement the MemoryEffectOpInterface we
+    // conservatively assume it writes.
+
+    return true;
+  }
+
+  return llvm::any_of(
+      *effects, [&](const MemoryEffects::EffectInstance &effect) {
+        return mlir::isa<MemoryEffects::Write>(effect.getEffect());
+      });
+}
+
+static bool boundsAreSafeForCSE(InvocationBounds bound) {
+  auto ub = bound.getUpperBound();
+  return ub.has_value() && ub.value() <= 1;
+}
+
+// Nullopt indicates that we did not find an unsafe side-effecting op,
+// but we also did not find the target op.
+static std::optional<bool>
+hasOtherSideEffectingOpInRegion(RegionBranchOpInterface branch,
+                                Operation *toOp) {
+  if (branch->hasTrait<OpTrait::HasRecursiveMemoryEffects>() &&
+      opHasOnlySimpleRegions(branch)) {
+    SmallVector<Attribute> unknownOperands(branch->getNumOperands(),
+                                           Attribute());
+    SmallVector<InvocationBounds> bounds;
+    branch.getRegionInvocationBounds(unknownOperands, bounds);
+    const bool allBoundsAreSafeForCSE =
+        !bounds.empty() && llvm::all_of(bounds, &boundsAreSafeForCSE);
+    if (allBoundsAreSafeForCSE) {
+      for (auto &region : branch->getRegions()) {
+        for (auto &block : region.getBlocks()) {
+          for (auto &op : block) {
+            if (&op == toOp)
+              return false;
+            if (opHasUnsafeSideEffect(&op))
+              return true;
+          }
+        }
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
                                                  Operation *toOp) {
-  assert(fromOp->getBlock() == toOp->getBlock());
+  assert(domInfo->properlyDominates(fromOp, toOp));
   assert(
       isa<MemoryEffectOpInterface>(fromOp) &&
       cast<MemoryEffectOpInterface>(fromOp).hasEffect<MemoryEffects::Read>() &&
       isa<MemoryEffectOpInterface>(toOp) &&
       cast<MemoryEffectOpInterface>(toOp).hasEffect<MemoryEffects::Read>());
+
   Operation *nextOp = fromOp->getNextNode();
   auto result =
       memEffectsCache.try_emplace(fromOp, std::make_pair(fromOp, nullptr));
@@ -198,28 +260,29 @@ bool CSEDriver::hasOtherSideEffectingOpInBetween(Operation *fromOp,
       return true;
     }
   }
-  while (nextOp && nextOp != toOp) {
-    std::optional<SmallVector<MemoryEffects::EffectInstance>> effects =
-        getEffectsRecursively(nextOp);
-    if (!effects) {
-      // TODO: Do we need to handle other effects generically?
-      // If the operation does not implement the MemoryEffectOpInterface we
-      // conservatively assume it writes.
-      result.first->second =
-          std::make_pair(nextOp, MemoryEffects::Write::get());
-      return true;
-    }
-
-    for (const MemoryEffects::EffectInstance &effect : *effects) {
-      if (isa<MemoryEffects::Write>(effect.getEffect())) {
-        result.first->second = {nextOp, MemoryEffects::Write::get()};
-        return true;
+  auto opIsSafe = [&]() {
+    result.first->second = std::make_pair(toOp, nullptr);
+    return false;
+  };
+  auto opIsUnsafe = [&](Operation *op) {
+    result.first->second = {op, MemoryEffects::Write::get()};
+    return true;
+  };
+  for (; nextOp && nextOp != toOp; nextOp = nextOp->getNextNode()) {
+    if (auto branch = dyn_cast<RegionBranchOpInterface>(nextOp); false) {
+      // If we get a result back, we either found something unsafe or our
+      // terminating operation. Otherwise, continue checking for unsafe
+      // side-effects.
+      if (auto regionIsUnsafe = hasOtherSideEffectingOpInRegion(branch, toOp);
+          regionIsUnsafe.has_value()) {
+        return regionIsUnsafe.value() ? opIsUnsafe(nextOp) : opIsSafe();
       }
     }
-    nextOp = nextOp->getNextNode();
+    if (opHasUnsafeSideEffect(nextOp)) {
+      return opIsUnsafe(nextOp);
+    }
   }
-  result.first->second = std::make_pair(toOp, nullptr);
-  return false;
+  return opIsSafe();
 }
 
 /// Attempt to eliminate a redundant operation.
@@ -239,10 +302,9 @@ LogicalResult CSEDriver::simplifyOperation(ScopedMapTy &knownValues,
 
   // Don't simplify operations with regions that have multiple blocks.
   // TODO: We need additional tests to verify that we handle such IR correctly.
-  if (!llvm::all_of(op->getRegions(), [](Region &r) {
-        return r.getBlocks().empty() || llvm::hasSingleElement(r.getBlocks());
-      }))
+  if (!opHasOnlySimpleRegions(op)) {
     return failure();
+  }
 
   // Some simple use case of operation with memory side-effect are dealt with
   // here. Operations with no side-effect are done after.
@@ -251,11 +313,13 @@ LogicalResult CSEDriver::simplifyOperation(ScopedMapTy &knownValues,
     // TODO: Only basic use case for operations with MemoryEffects::Read can be
     // eleminated now. More work needs to be done for more complicated patterns
     // and other side-effects.
-    if (!memEffects || !memEffects.onlyHasEffect<MemoryEffects::Read>())
+    if (!memEffects || !memEffects.onlyHasEffect<MemoryEffects::Read>()) {
       return failure();
+    }
 
     // Look for an existing definition for the operation.
     if (auto *existing = knownValues.lookup(op)) {
+      // if (domInfo->properlyDominates(existing, op) &&
       if (existing->getBlock() == op->getBlock() &&
           !hasOtherSideEffectingOpInBetween(existing, op)) {
         // The operation that can be deleted has been reach with no
@@ -325,8 +389,9 @@ void CSEDriver::simplifyRegion(ScopedMapTy &knownValues, Region &region) {
   // If the region does not have dominanceInfo, then skip it.
   // TODO: Regions without SSA dominance should define a different
   // traversal order which is appropriate and can be used here.
-  if (!hasSSADominance)
+  if (!hasSSADominance) {
     return;
+  }
 
   // Note, deque is being used here because there was significant performance
   // gains over vector when the container becomes very large due to the
