@@ -158,6 +158,7 @@ public:
         rewriter.create<arith::ConstantIndexOp>(loc, op.getStepAsInt());
     auto scfForOp = rewriter.create<scf::ForOp>(loc, lowerBound, upperBound,
                                                 step, op.getInits());
+    scfForOp->setDiscardableAttrs(op->getDiscardableAttrDictionary());
     rewriter.eraseBlock(scfForOp.getBody());
     rewriter.inlineRegionBefore(op.getRegion(), scfForOp.getRegion(),
                                 scfForOp.getRegion().end());
