@@ -1,14 +1,20 @@
 // RUN: mlir-opt -math-sincos-fusion %s | FileCheck %s
 
 // CHECK-LABEL:   func.func @sincos_fusion(
-// CHECK-SAME:      %[[ARG0:.*]]: f32) -> (f32, f32) {
+// CHECK-SAME:      %[[ARG0:.*]]: f32,
+// CHECK-SAME:      %[[ARG1:.*]]: f32) -> (f32, f32, f32, f32) {
 // CHECK:           %[[VAL_0:.*]], %[[VAL_1:.*]] = math.sincos %[[ARG0]] : f32
-// CHECK:           return %[[VAL_0]], %[[VAL_1]] : f32, f32
+// CHECK:           %[[VAL_2:.*]], %[[VAL_3:.*]] = math.sincos %[[ARG1]] : f32
+// CHECK:           return %[[VAL_0]], %[[VAL_1]], %[[VAL_3]], %[[VAL_2]] : f32, f32, f32, f32
 // CHECK:         }
-func.func @sincos_fusion(%arg0 : f32) -> (f32, f32) {
+func.func @sincos_fusion(%arg0 : f32, %arg1 : f32) -> (f32, f32, f32, f32) {
     %0 = math.sin %arg0 : f32
     %1 = math.cos %arg0 : f32
-    func.return %0, %1 : f32, f32
+
+    %2 = math.cos %arg1 : f32
+    %3 = math.sin %arg1 : f32
+
+    func.return %0, %1, %2, %3 : f32, f32, f32, f32
 }
 
 // CHECK-LABEL:   func.func @sincos_fusion_no_match_fmf(

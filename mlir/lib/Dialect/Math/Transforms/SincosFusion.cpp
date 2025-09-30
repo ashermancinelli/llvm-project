@@ -25,12 +25,15 @@ struct SincosFusionPattern : OpRewritePattern<math::SinOp> {
   LogicalResult matchAndRewrite(math::SinOp sinOp,
                                 PatternRewriter &rewriter) const override {
     Value operand = sinOp.getOperand();
-    auto sinFastMathFlags = sinOp.getFastmath();
+    mlir::arith::FastMathFlags sinFastMathFlags = sinOp.getFastmath();
 
     math::CosOp cosOp = nullptr;
     sinOp->getBlock()->walk([&](math::CosOp op) {
-      if (op.getOperand() == operand && op.getFastmath() == sinFastMathFlags)
+      if (op.getOperand() == operand && op.getFastmath() == sinFastMathFlags) {
         cosOp = op;
+        return WalkResult::interrupt();
+      }
+      return WalkResult::advance();
     });
 
     if (!cosOp)
