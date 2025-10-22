@@ -76,6 +76,22 @@
 
 namespace fir {
 
+static llvm::cl::opt<ExtremumBehavior> defaultExtremumBehavior(
+    "extremum-behavior", llvm::cl::desc("Set the extremum behavior"),
+    llvm::cl::init(ExtremumBehavior::IeeeMinMaximumNumber),
+    llvm::cl::values(
+        clEnumValN(ExtremumBehavior::IeeeMinMaximumNumber,
+                   "ieee-min-maximum-number",
+                   "IEEE minimum/maximum number behavior"),
+        clEnumValN(ExtremumBehavior::IeeeMinMaximum, "ieee-min-maximum",
+                   "IEEE minimum/maximum behavior"),
+        clEnumValN(ExtremumBehavior::IeeeMinMaxNum, "ieee-min-max-num",
+                   "IEEE minimum/maximum behavior"),
+        clEnumValN(ExtremumBehavior::MinMaxss, "min-maxss",
+                   "x86 minss/maxss behavior"),
+        clEnumValN(ExtremumBehavior::PgfortranLlvm, "pgfortran-llvm",
+                   "pgfortran -nollvm behavior")));
+
 fir::ExtendedValue getAbsentIntrinsicArgument() { return fir::UnboxedValue{}; }
 
 /// Test if an ExtendedValue is absent. This is used to test if an intrinsic
@@ -539,7 +555,7 @@ static constexpr IntrinsicHandler handlers[]{
      &I::genMatmulTranspose,
      {{{"matrix_a", asAddr}, {"matrix_b", asAddr}}},
      /*isElemental=*/false},
-    {"max", &I::genExtremum<Extremum::Max, ExtremumBehavior::MinMaxss>},
+    {"max", &I::genExtremum<Extremum::Max, ExtremumBehavior::IeeeMinMaximumNumber>},
     {"maxloc",
      &I::genMaxloc,
      {{{"array", asBox},
@@ -556,7 +572,7 @@ static constexpr IntrinsicHandler handlers[]{
      /*isElemental=*/false},
     {"merge", &I::genMerge},
     {"merge_bits", &I::genMergeBits},
-    {"min", &I::genExtremum<Extremum::Min, ExtremumBehavior::MinMaxss>},
+    {"min", &I::genExtremum<Extremum::Min, ExtremumBehavior::IeeeMinMaximumNumber>},
     {"minloc",
      &I::genMinloc,
      {{{"array", asBox},
@@ -8474,7 +8490,7 @@ static mlir::Value createExtremumCompare(mlir::Location loc,
                                 : mlir::arith::CmpFPredicate::OLT;
   mlir::Value result;
   if (fir::isa_real(type)) {
-    // Note: the signaling/quit aspect of the result required by IEEE
+    // Note: the signaling/quiet aspect of the result required by IEEE
     // cannot currently be obtained with LLVM without ad-hoc runtime.
     if constexpr (behavior == ExtremumBehavior::IeeeMinMaximumNumber) {
       // Return the number if one of the inputs is NaN and the other is
@@ -8486,7 +8502,7 @@ static mlir::Value createExtremumCompare(mlir::Location loc,
       result =
           mlir::arith::OrIOp::create(builder, loc, leftIsResult, rightIsNan);
     } else if constexpr (behavior == ExtremumBehavior::IeeeMinMaximum) {
-      // Always return NaNs if one the input is NaNs
+      // Always return NaN if one of the input is NaN.
       auto leftIsResult =
           mlir::arith::CmpFOp::create(builder, loc, orderedCmp, left, right);
       auto leftIsNan = mlir::arith::CmpFOp::create(
@@ -8494,7 +8510,7 @@ static mlir::Value createExtremumCompare(mlir::Location loc,
       result =
           mlir::arith::OrIOp::create(builder, loc, leftIsResult, leftIsNan);
     } else if constexpr (behavior == ExtremumBehavior::MinMaxss) {
-      // If the left is a NaN, return the right whatever it is.
+      // If the left is NaN, return the right whatever it is.
       result =
           mlir::arith::CmpFOp::create(builder, loc, orderedCmp, left, right);
     } else if constexpr (behavior == ExtremumBehavior::PgfortranLlvm) {
@@ -8527,6 +8543,32 @@ static mlir::Value createExtremumCompare(mlir::Location loc,
   }
   assert(result && "result must be defined");
   return result;
+}
+
+// Combine two values according to extremum and behavior, returning the result.
+template <Extremum extremum, ExtremumBehavior behavior>
+static mlir::Value combineExtremum(mlir::Location loc,
+                                   fir::FirOpBuilder &builder,
+                                   mlir::Value left, mlir::Value right) {
+  mlir::Type type = left.getType();
+  if (fir::isa_real(type)) {
+    if constexpr (behavior == ExtremumBehavior::IeeeMinMaximumNumber) {
+      if constexpr (extremum == Extremum::Max)
+        return mlir::arith::MaxNumFOp::create(builder, loc, left, right);
+      else
+        return mlir::arith::MinNumFOp::create(builder, loc, left, right);
+    } else if constexpr (behavior == ExtremumBehavior::IeeeMinMaximum) {
+      if constexpr (extremum == Extremum::Max)
+        return mlir::arith::MaximumFOp::create(builder, loc, left, right);
+      else
+        return mlir::arith::MinimumFOp::create(builder, loc, left, right);
+    }
+  }
+
+  // Fallback: compare + select for integers and non-num behaviors.
+  mlir::Value mask =
+      createExtremumCompare<extremum, behavior>(loc, builder, left, right);
+  return mlir::arith::SelectOp::create(builder, loc, mask, left, right);
 }
 
 // UNLINK
@@ -8831,11 +8873,8 @@ mlir::Value IntrinsicLibrary::genExtremum(mlir::Type,
                                           llvm::ArrayRef<mlir::Value> args) {
   assert(args.size() >= 1);
   mlir::Value result = args[0];
-  for (auto arg : args.drop_front()) {
-    mlir::Value mask =
-        createExtremumCompare<extremum, behavior>(loc, builder, result, arg);
-    result = mlir::arith::SelectOp::create(builder, loc, mask, result, arg);
-  }
+  for (auto arg : args.drop_front())
+    result = combineExtremum<extremum, behavior>(loc, builder, result, arg);
   return result;
 }
 
@@ -8898,16 +8937,16 @@ mlir::Value genMax(fir::FirOpBuilder &builder, mlir::Location loc,
                    llvm::ArrayRef<mlir::Value> args) {
   assert(args.size() > 0 && "max requires at least one argument");
   return IntrinsicLibrary{builder, loc}
-      .genExtremum<Extremum::Max, ExtremumBehavior::MinMaxss>(args[0].getType(),
-                                                              args);
+      .genExtremum<Extremum::Max, ExtremumBehavior::IeeeMinMaximumNumber>(
+          args[0].getType(), args);
 }
 
 mlir::Value genMin(fir::FirOpBuilder &builder, mlir::Location loc,
                    llvm::ArrayRef<mlir::Value> args) {
   assert(args.size() > 0 && "min requires at least one argument");
   return IntrinsicLibrary{builder, loc}
-      .genExtremum<Extremum::Min, ExtremumBehavior::MinMaxss>(args[0].getType(),
-                                                              args);
+      .genExtremum<Extremum::Min, ExtremumBehavior::IeeeMinMaximumNumber>(
+          args[0].getType(), args);
 }
 
 mlir::Value genDivC(fir::FirOpBuilder &builder, mlir::Location loc,

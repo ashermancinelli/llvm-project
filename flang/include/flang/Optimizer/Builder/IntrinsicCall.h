@@ -66,7 +66,7 @@ enum class ExtremumBehavior {
   IeeeMinMaximumNumber,
   // IEEE minimumNumber/maximumNumber behavior (754-2019, section 9.6):
   // If one of the argument is and number and the other is NaN, return the
-  // number. If both arguements are NaN, return NaN.
+  // number. If both arguments are NaN, return NaN.
   // Compilers: gfortran.
   IeeeMinMaximum,
   // IEEE minimum/maximum behavior (754-2019, section 9.6):
