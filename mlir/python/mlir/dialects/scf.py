@@ -6,6 +6,7 @@
 from ._scf_ops_gen import *
 from ._scf_ops_gen import _Dialect
 from .arith import constant
+import builtins
 
 try:
     from ..ir import *
@@ -18,7 +19,6 @@ except ImportError as e:
     raise RuntimeError("Error loading imports from extension module") from e
 
 from typing import List, Optional, Sequence, Tuple, Union
-
 
 @_ods_cext.register_operation(_Dialect, replace=True)
 class ForOp(ForOp):
@@ -254,3 +254,76 @@ def for_(
             yield iv, iter_args[0], for_op.results[0]
         else:
             yield iv
+
+@_ods_cext.register_operation(_Dialect, replace=True)
+class IndexSwitchOp(IndexSwitchOp):
+    __doc__ = IndexSwitchOp.__doc__
+
+    def __init__(
+        self,
+        results_,
+        arg,
+        cases,
+        case_body_builder=None,
+        default_body_builder=None,
+        loc=None,
+        ip=None,
+    ):
+        cases = DenseI64ArrayAttr.get(cases)
+        super().__init__(
+            results_, arg, cases, num_caseRegions=len(cases), loc=loc, ip=ip
+        )
+        for region in self.regions:
+            region.blocks.append()
+
+        if default_body_builder is not None:
+            with InsertionPoint(self.default_block):
+                default_body_builder(self)
+
+        if case_body_builder is not None:
+            for i, case in enumerate(cases):
+                with InsertionPoint(self.case_block(i)):
+                    case_body_builder(self, i, self.cases[i])
+
+    @builtins.property
+    def default_region(self) -> Region:
+        return self.regions[0]
+
+    @builtins.property
+    def default_block(self) -> Block:
+        return self.default_region.blocks[0]
+
+    @builtins.property
+    def case_regions(self) -> Sequence[Region]:
+        return [self.regions[1 + i] for i in range(len(self.cases))]
+
+    def case_region(self, i: int) -> Region:
+        return self.case_regions[i]
+
+    @builtins.property
+    def case_blocks(self) -> Sequence[Block]:
+        return [region.blocks[0] for region in self.case_regions]
+
+    def case_block(self, i: int) -> Block:
+        return self.case_regions[i].blocks[0]
+
+def index_switch(
+    results_,
+    arg,
+    cases,
+    case_body_builder=None,
+    default_body_builder=None,
+    loc=None,
+    ip=None,
+) -> Union[OpResult, OpResultList, IndexSwitchOp]:
+    op = IndexSwitchOp(
+        results_=results_,
+        arg=arg,
+        cases=cases,
+        case_body_builder=case_body_builder,
+        default_body_builder=default_body_builder,
+        loc=loc,
+        ip=ip,
+    )
+    results = op.results
+    return results if len(results) > 1 else (results[0] if len(results) == 1 else op)
