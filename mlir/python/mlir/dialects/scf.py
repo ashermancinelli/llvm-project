@@ -21,6 +21,7 @@ except ImportError as e:
 
 from typing import List, Optional, Sequence, Tuple, Union
 
+
 @_ods_cext.register_operation(_Dialect, replace=True)
 class ForOp(ForOp):
     """Specialization for the SCF for op class."""
@@ -256,6 +257,7 @@ def for_(
         else:
             yield iv
 
+
 @_ods_cext.register_operation(_Dialect, replace=True)
 class IndexSwitchOp(IndexSwitchOp):
     __doc__ = IndexSwitchOp.__doc__
@@ -307,6 +309,7 @@ class IndexSwitchOp(IndexSwitchOp):
 
     def case_block(self, i: int) -> Block:
         return self.case_regions[i].blocks[0]
+
 
 def index_switch(
     results_,

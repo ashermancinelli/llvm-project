@@ -363,8 +363,8 @@ def testIfWithElse():
 
 @constructAndPrintInModule
 def testIndexSwitch():
-
     i32 = T.i32()
+
     @func.FuncOp.from_py_func(T.index(), results=[i32])
     def index_switch(index):
         c1 = arith.constant(i32, 1)
@@ -384,17 +384,44 @@ def testIndexSwitch():
 
         for i, block in enumerate(switch_op.case_blocks):
             with InsertionPoint(block):
-                scf.YieldOp([arith.constant(i32, i)])
+                scf.yield_([arith.constant(i32, i)])
 
         func.return_([switch_op.results[0]])
 
     return index_switch
 
 
+# CHECK-LABEL:   func.func @index_switch(
+# CHECK-SAME:      %[[ARG0:.*]]: index) -> i32 {
+# CHECK:           %[[CONSTANT_0:.*]] = arith.constant 1 : i32
+# CHECK:           %[[CONSTANT_1:.*]] = arith.constant 0 : i32
+# CHECK:           %[[CONSTANT_2:.*]] = arith.constant 5 : i32
+# CHECK:           %[[INDEX_SWITCH_0:.*]] = scf.index_switch %[[ARG0]] -> i32
+# CHECK:           case 0 {
+# CHECK:             %[[CONSTANT_3:.*]] = arith.constant 0 : i32
+# CHECK:             scf.yield %[[CONSTANT_3]] : i32
+# CHECK:           }
+# CHECK:           case 1 {
+# CHECK:             %[[CONSTANT_4:.*]] = arith.constant 1 : i32
+# CHECK:             scf.yield %[[CONSTANT_4]] : i32
+# CHECK:           }
+# CHECK:           case 2 {
+# CHECK:             %[[CONSTANT_5:.*]] = arith.constant 2 : i32
+# CHECK:             scf.yield %[[CONSTANT_5]] : i32
+# CHECK:           }
+# CHECK:           default {
+# CHECK:             %[[CONSTANT_6:.*]] = arith.constant false
+# CHECK:             cf.assert %[[CONSTANT_6]], "Whoops!"
+# CHECK:             scf.yield %[[CONSTANT_0]] : i32
+# CHECK:           }
+# CHECK:           return %[[INDEX_SWITCH_0]] : i32
+# CHECK:         }
+
+
 @constructAndPrintInModule
 def testIndexSwitchWithBodyBuilders():
-
     i32 = T.i32()
+
     @func.FuncOp.from_py_func(T.index(), results=[i32])
     def index_switch(index):
         c1 = arith.constant(i32, 1)
@@ -406,7 +433,7 @@ def testIndexSwitchWithBodyBuilders():
             scf.yield_([c1])
 
         def case_body_builder(switch_op, case_index: int, case_value: int):
-            scf.YieldOp([arith.constant(i32, case_value)])
+            scf.yield_([arith.constant(i32, case_value)])
 
         result = scf.index_switch(
             results_=[i32],
@@ -419,3 +446,30 @@ def testIndexSwitchWithBodyBuilders():
         func.return_([result])
 
     return index_switch
+
+
+# CHECK-LABEL:   func.func @index_switch(
+# CHECK-SAME:      %[[ARG0:.*]]: index) -> i32 {
+# CHECK:           %[[CONSTANT_0:.*]] = arith.constant 1 : i32
+# CHECK:           %[[CONSTANT_1:.*]] = arith.constant 0 : i32
+# CHECK:           %[[CONSTANT_2:.*]] = arith.constant 5 : i32
+# CHECK:           %[[INDEX_SWITCH_0:.*]] = scf.index_switch %[[ARG0]] -> i32
+# CHECK:           case 0 {
+# CHECK:             %[[CONSTANT_3:.*]] = arith.constant 0 : i32
+# CHECK:             scf.yield %[[CONSTANT_3]] : i32
+# CHECK:           }
+# CHECK:           case 1 {
+# CHECK:             %[[CONSTANT_4:.*]] = arith.constant 1 : i32
+# CHECK:             scf.yield %[[CONSTANT_4]] : i32
+# CHECK:           }
+# CHECK:           case 2 {
+# CHECK:             %[[CONSTANT_5:.*]] = arith.constant 2 : i32
+# CHECK:             scf.yield %[[CONSTANT_5]] : i32
+# CHECK:           }
+# CHECK:           default {
+# CHECK:             %[[CONSTANT_6:.*]] = arith.constant false
+# CHECK:             cf.assert %[[CONSTANT_6]], "Whoops!"
+# CHECK:             scf.yield %[[CONSTANT_0]] : i32
+# CHECK:           }
+# CHECK:           return %[[INDEX_SWITCH_0]] : i32
+# CHECK:         }
