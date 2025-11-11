@@ -9,8 +9,18 @@ from ..._mlir_libs._mlirDialectsLinalg import *
 # definitions following these steps:
 #   DSL -> YAML -> tblgen -> pytblgen -> build/.../_linalg_ops_gen.py.
 from .._linalg_ops_gen import *
+from .._linalg_ops_gen import _Dialect
 from .._linalg_enum_gen import *
 from .._linalg_enum_gen import _iteratortypeenum
+
+try:
+    from ...ir import *
+    from .._ods_common import (
+        get_op_result_or_op_results as _get_op_result_or_op_results,
+        _cext as _ods_cext,
+    )
+except ImportError as e:
+    raise RuntimeError("Error loading imports from extension module") from e
 
 # These are the ground truth functions defined as:
 # ```
@@ -352,3 +362,50 @@ def unpack(
             ip=ip,
         )
     )
+
+@_ods_cext.register_operation(_Dialect, replace=True)
+class ReduceOp_(ReduceOp):
+    def __init__(
+        self,
+        result,
+        inputs,
+        inits,
+        dimensions,
+        body_builder=None,
+        loc=None,
+        ip=None,
+    ):
+        super().__init__(
+            result=result,
+            inputs=inputs,
+            inits=inits,
+            dimensions=dimensions,
+            loc=loc,
+            ip=ip,
+        )
+        reg = self.combiner
+        combiner_block = reg.blocks.append(
+            *[input.type.element_type for input in inputs],
+            *[res.element_type for res in result],
+        )
+        if body_builder is not None:
+            with ir.InsertionPoint(combiner_block):
+                body_builder(self, *combiner_block.arguments)
+
+def reduce(
+    result, inputs, inits, dimensions, body_builder=None, loc=None, ip=None
+) -> Union[OpResult, OpResultList, ReduceOp]:
+    from mlir.dialects.linalg import ReduceOp
+    op = ReduceOp(
+        result=result, inputs=inputs, inits=inits, dimensions=dimensions, loc=loc, ip=ip
+    )
+    if body_builder:
+        block = op.combiner.blocks.append()
+        loc = loc or Location.unknown(op.operation.context)
+        for input in inputs:
+            block.add_argument(input.type.element_type, loc)
+        for res in result:
+            block.add_argument(res.element_type, loc)
+        with ir.InsertionPoint(block):
+            body_builder(op, *block.arguments)
+    return _get_op_result_or_op_results(op)
