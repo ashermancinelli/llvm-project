@@ -13,6 +13,7 @@ try:
     from ._ods_common import (
         get_op_result_or_value as _get_op_result_or_value,
         get_op_results_or_values as _get_op_results_or_values,
+        get_op_result_or_op_results as _get_op_result_or_op_results,
         _cext as _ods_cext,
     )
 except ImportError as e:
@@ -325,5 +326,4 @@ def index_switch(
         loc=loc,
         ip=ip,
     )
-    results = op.results
-    return results if len(results) > 1 else (results[0] if len(results) == 1 else op)
+    return _get_op_result_or_op_results(op)
