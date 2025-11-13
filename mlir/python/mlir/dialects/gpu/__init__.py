@@ -20,8 +20,10 @@ try:
         Type,
         DictAttr,
         Attribute,
+        AttrBuilder,
         DenseI32ArrayAttr,
         Value,
+        Context,
     )
     from ...extras.meta import region_op
     from ...extras import types as T
@@ -38,6 +40,50 @@ except ImportError as e:
 def gpu_async_token():
     return Type.parse("!gpu.async.token")
 
+from mlir.dialects.gpu import AddressSpace
+
+
+def _gpu_attribute(cls):
+    def get(x: Any, *, context: Optional[Context] = None) -> Attribute:
+        return AttrBuilder.get("GPU_" + cls.__name__)(x, context)
+    setattr(cls, "get", get)
+    return cls
+
+@_gpu_attribute
+class AddressSpaceAttr:
+    ...
+
+@_gpu_attribute
+class AllReduceOperationAttr:
+    ...
+
+@_gpu_attribute
+class BroadcastTypeAttr:
+    ...
+
+@_gpu_attribute
+class DimensionAttr:
+    ...
+
+@_gpu_attribute
+class Prune2To4SpMatFlagAttr:
+    ...
+
+@_gpu_attribute
+class ShuffleModeAttr:
+    ...
+
+@_gpu_attribute
+class SpGEMMWorkEstimationOrComputeKindAttr:
+    ...
+
+@_gpu_attribute
+class TransposeModeAttr:
+    ...
+
+@_gpu_attribute
+class MMAElementWiseAttr:
+    ...
 
 @_ods_cext.register_operation(_Dialect, replace=True)
 class GPUFuncOp(GPUFuncOp):

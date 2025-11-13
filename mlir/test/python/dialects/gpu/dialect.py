@@ -2,7 +2,7 @@
 
 from mlir.ir import *
 import mlir.ir as ir
-from mlir.dialects import gpu, func, arith, math
+from mlir.dialects import gpu, func, arith, math, memref
 from mlir.extras import types as T
 import mlir.dialects.gpu.passes
 from mlir.passmanager import *
@@ -251,3 +251,25 @@ def testGPULaunchOp():
     # CHECK:           }
     # CHECK:           return
     # CHECK:         }
+
+@run
+def testGPUAttributes():
+    module = Module.create()
+    f32 = T.f32()
+    with InsertionPoint(module.body):
+        @func.FuncOp.from_py_func(f32)
+        def foo(x: f32) -> f32:
+            for kind in (
+                gpu.AddressSpace.Global,
+                gpu.AddressSpace.Workgroup,
+                gpu.AddressSpace.Private,
+            ):
+                shared = gpu.AddressSpaceAttr.get(kind)
+                mr_type = T.memref(10, element_type=f32, memory_space=shared)
+                memref.alloc(mr_type, [], [])
+
+            for kind in range(3):
+                mr_type = T.memref(10, element_type=f32, memory_space=kind)
+                memref.alloc(mr_type, [], [])
+            return x
+    print(module)
