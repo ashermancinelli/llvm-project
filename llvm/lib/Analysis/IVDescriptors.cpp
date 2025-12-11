@@ -28,6 +28,10 @@ using namespace llvm::PatternMatch;
 
 #define DEBUG_TYPE "iv-descriptors"
 
+static cl::opt<bool> ForceFPReductionReassoc(
+    "force-fp-reduction-reassoc", cl::init(false), cl::Hidden,
+    cl::desc("Allows reassociation of FP reduction even if FP reassociation is not allowed otherwise"));
+
 bool RecurrenceDescriptor::areAllUsesIn(Instruction *I,
                                         SmallPtrSetImpl<Instruction *> &Set) {
   for (const Use &Use : I->operands())
@@ -910,11 +914,11 @@ RecurrenceDescriptor::InstDesc RecurrenceDescriptor::isRecurrenceInstr(
   case Instruction::FDiv:
   case Instruction::FMul:
     return InstDesc(Kind == RecurKind::FMul, I,
-                    I->hasAllowReassoc() ? nullptr : I);
+                    I->hasAllowReassoc() || ForceFPReductionReassoc ? nullptr : I);
   case Instruction::FSub:
   case Instruction::FAdd:
     return InstDesc(Kind == RecurKind::FAdd, I,
-                    I->hasAllowReassoc() ? nullptr : I);
+                    I->hasAllowReassoc() || ForceFPReductionReassoc ? nullptr : I);
   case Instruction::Select:
     if (Kind == RecurKind::FAdd || Kind == RecurKind::FMul ||
         Kind == RecurKind::Add || Kind == RecurKind::Mul ||
@@ -967,7 +971,7 @@ RecurrenceDescriptor::InstDesc RecurrenceDescriptor::isRecurrenceInstr(
     }
     if (isFMulAddIntrinsic(I))
       return InstDesc(Kind == RecurKind::FMulAdd, I,
-                      I->hasAllowReassoc() ? nullptr : I);
+                      I->hasAllowReassoc() || ForceFPReductionReassoc ? nullptr : I);
     return InstDesc(false, I);
   }
 }
