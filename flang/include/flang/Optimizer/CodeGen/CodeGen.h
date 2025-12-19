@@ -64,6 +64,10 @@ struct FIRToLLVMPassOptions {
   // Conversion pass of the MLIR complex dialect.
   Fortran::frontend::CodeGenOptions::ComplexRangeKind ComplexRange =
       Fortran::frontend::CodeGenOptions::ComplexRangeKind::CX_Full;
+
+  // Default visibility for global variables and functions.
+  Fortran::frontend::CodeGenOptions::VisibilityKind DefaultVisibility =
+      Fortran::frontend::CodeGenOptions::VisibilityKind::Default;
 };
 
 /// Convert FIR to the LLVM IR dialect with default options.

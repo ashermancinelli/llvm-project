@@ -93,6 +93,7 @@ struct MLIRToLLVMPassPipelineConfig : public FlangEPCallBacks {
     DebugInfo = opts.getDebugInfo();
     AliasAnalysis = opts.AliasAnalysis;
     FramePointerKind = opts.getFramePointer();
+    DefaultVisibility = opts.getDefaultVisibility();
     // The logic for setting these attributes is intended to match the logic
     // used in Clang.
     NoInfsFPMath = mathOpts.getNoHonorInfs();
@@ -121,6 +122,9 @@ struct MLIRToLLVMPassPipelineConfig : public FlangEPCallBacks {
       llvm::codegenoptions::NoDebugInfo; ///< Debug info generation.
   llvm::FramePointerKind FramePointerKind =
       llvm::FramePointerKind::None; ///< Add frame pointer to functions.
+  Fortran::frontend::CodeGenOptions::VisibilityKind DefaultVisibility =
+      Fortran::frontend::CodeGenOptions::VisibilityKind::
+          Default; ///< Default visibility for global variables and functions.
   unsigned VScaleMin = 0; ///< SVE vector range minimum.
   unsigned VScaleMax = 0; ///< SVE vector range maximum.
   bool NoInfsFPMath = false; ///< Set no-infs-fp-math attribute for functions.

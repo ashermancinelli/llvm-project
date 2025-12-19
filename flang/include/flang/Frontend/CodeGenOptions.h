@@ -224,6 +224,9 @@ public:
     /// is implemented. (See clang/Basic/LangOptions.h)
   };
 
+  /// Kinds of visibility for global variables and functions.
+  enum class VisibilityKind { Default, Hidden, Protected };
+
   // Define accessors/mutators for code generation options of enumeration type.
 #define CODEGENOPT(Name, Bits, Default)
 #define ENUM_CODEGENOPT(Name, Type, Bits, Default)                             \

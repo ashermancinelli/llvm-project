@@ -53,6 +53,7 @@
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/LLVMIR/NVVMDialect.h"
 #include "mlir/Dialect/LLVMIR/Transforms/AddComdats.h"
+#include "mlir/Dialect/LLVMIR/Transforms/UseDefaultVisibilityPass.h"
 #include "mlir/Dialect/OpenACC/OpenACC.h"
 #include "mlir/Dialect/OpenMP/OpenMPDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -4367,6 +4368,28 @@ public:
       mlir::OpPassManager comdatPM("builtin.module");
       comdatPM.addPass(mlir::LLVM::createLLVMAddComdats());
       if (mlir::failed(runPipeline(comdatPM, mod)))
+        return signalPassFailure();
+    }
+
+    mlir::LLVM::Visibility defaultLLVMVisibility;
+    switch (options.DefaultVisibility) {
+    case Fortran::frontend::CodeGenOptions::VisibilityKind::Default:
+      defaultLLVMVisibility = mlir::LLVM::Visibility::Default;
+      break;
+    case Fortran::frontend::CodeGenOptions::VisibilityKind::Hidden:
+      defaultLLVMVisibility = mlir::LLVM::Visibility::Hidden;
+      break;
+    case Fortran::frontend::CodeGenOptions::VisibilityKind::Protected:
+      defaultLLVMVisibility = mlir::LLVM::Visibility::Protected;
+      break;
+    }
+
+    if (defaultLLVMVisibility != mlir::LLVM::Visibility::Default) {
+      mlir::OpPassManager defaultVisibilityPM("builtin.module");
+      defaultVisibilityPM.addPass(
+          mlir::LLVM::createLLVMUseDefaultVisibilityPass(
+              {defaultLLVMVisibility}));
+      if (mlir::failed(runPipeline(defaultVisibilityPM, mod)))
         return signalPassFailure();
     }
   }

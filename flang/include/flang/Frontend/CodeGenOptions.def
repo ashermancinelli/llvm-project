@@ -56,7 +56,7 @@ ENUM_CODEGENOPT(DebugInfo,  llvm::codegenoptions::DebugInfoKind, 4,  llvm::codeg
 ENUM_CODEGENOPT(VecLib, llvm::driver::VectorLibrary, 4, llvm::driver::VectorLibrary::NoLibrary) ///< Vector functions library to use
 ENUM_CODEGENOPT(FramePointer, llvm::FramePointerKind, 3, llvm::FramePointerKind::None) ///< Enable the usage of frame pointers
 ENUM_CODEGENOPT(ComplexRange, ComplexRangeKind, 3, ComplexRangeKind::CX_Full) ///< Method for calculating complex number division
-
+ENUM_CODEGENOPT(DefaultVisibility, VisibilityKind, 3, VisibilityKind::Default) ///< Default visibility for global variables and functions
 ENUM_CODEGENOPT(DoConcurrentMapping, DoConcurrentMappingKind, 2, DoConcurrentMappingKind::DCMK_None) ///< Map `do concurrent` to OpenMP
 
 #undef CODEGENOPT
